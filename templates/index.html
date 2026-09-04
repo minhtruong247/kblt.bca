@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KBLT Converter - Chuyển đổi file lưu trú</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-glass: rgba(255, 255, 255, 0.03);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --accent-cyan: #06b6d4;
+            --gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --gradient-success: linear-gradient(135deg, #10b981, #06b6d4);
+            --gradient-warm: linear-gradient(135deg, #f59e0b, #f43f5e);
+            --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-animation .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.3;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-animation .orb:nth-child(1) {
+            width: 600px;
+            height: 600px;
+            background: var(--accent-blue);
+            top: -200px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+
+        .bg-animation .orb:nth-child(2) {
+            width: 400px;
+            height: 400px;
+            background: var(--accent-purple);
+            bottom: -100px;
+            left: -50px;
+            animation-delay: -7s;
+        }
+
+        .bg-animation .orb:nth-child(3) {
+            width: 300px;
+            height: 300px;
+            background: var(--accent-emerald);
+            top: 50%;
+            left: 50%;
+            animation-delay: -14s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(50px, -30px) scale(1.05); }
+            50% { transform: translate(-30px, 50px) scale(0.95); }
+            75% { transform: translate(30px, 30px) scale(1.02); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 24px 60px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .header .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .header .badge .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-emerald);
+            border-radius: 50%;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .header h1 {
+            font-size: 42px;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+            margin-bottom: 12px;
+        }
+
+        .header p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius);
+            padding: 32px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title .icon {
+            font-size: 18px;
+        }
+
+        /* Upload zones */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            padding: 36px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--bg-glass);
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.08);
+            transform: scale(1.02);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .upload-zone.has-file {
+            border-color: var(--accent-emerald);
+            border-style: solid;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .upload-zone .zone-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-zone .zone-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .upload-zone .zone-label {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .upload-zone .zone-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .upload-zone .file-name {
+            display: none;
+            font-size: 13px;
+            color: var(--accent-emerald);
+            font-weight: 500;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        .upload-zone.has-file .file-name {
+            display: block;
+        }
+
+        .upload-zone.has-file .zone-icon::after {
+            content: '✓';
+            position: absolute;
+            font-size: 16px;
+            right: -8px;
+            bottom: -4px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Settings */
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 24px;
+            padding: 16px 20px;
+            background: var(--bg-glass);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-glass);
+        }
+
+        .settings-row label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .settings-row label strong {
+            color: var(--text-primary);
+        }
+
+        .number-input {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-glass);
+        }
+
+        .number-input button {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .number-input button:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .number-input input {
+            width: 48px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            text-align: center;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .number-input input:focus {
+            outline: none;
+        }
+
+        /* Submit button */
+        .submit-section {
+            text-align: center;
+            margin-top: 32px;
+        }
+
+        .btn-convert {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 48px;
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-convert::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .btn-convert:hover::before {
+            opacity: 1;
+        }
+
+        .btn-convert:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-convert:active {
+            transform: translateY(0);
+        }
+
+        .btn-convert:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-convert .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .btn-convert.loading .spinner {
+            display: block;
+        }
+
+        .btn-convert.loading .btn-text {
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Results */
+        .results {
+            display: none;
+            animation: slideUp 0.5s ease;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.1));
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: var(--radius);
+            padding: 28px 32px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .success-banner .check-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--gradient-success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 28px;
+            animation: scaleIn 0.5s ease;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            to { transform: scale(1); }
+        }
+
+        .success-banner h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-emerald);
+            margin-bottom: 6px;
+        }
+
+        .success-banner p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 20px 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 4px;
+            line-height: 1;
+        }
+
+        .stat-card .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .stat-card:nth-child(1) .stat-value { color: var(--accent-blue); }
+        .stat-card:nth-child(2) .stat-value { color: var(--accent-purple); }
+        .stat-card:nth-child(3) .stat-value { color: var(--accent-emerald); }
+        .stat-card:nth-child(4) .stat-value { color: var(--accent-amber); }
+        .stat-card:nth-child(5) .stat-value { color: var(--accent-cyan); }
+        .stat-card:nth-child(6) .stat-value { color: var(--accent-rose); }
+
+        /* Download button */
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 40px;
+            background: var(--gradient-success);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-reset {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 12px;
+        }
+
+        .btn-reset:hover {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+
+        /* Error */
+        .error-banner {
+            display: none;
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            margin-top: 16px;
+            color: var(--accent-rose);
+            font-size: 14px;
+            animation: slideUp 0.3s ease;
+        }
+
+        .error-banner.show {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .upload-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+
+        /* Detail mapping list */
+        .mapping-detail {
+            margin-top: 16px;
+        }
+
+        .mapping-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-glass);
+            font-size: 13px;
+        }
+
+        .mapping-item:last-child {
+            border-bottom: none;
+        }
+
+        .mapping-item .map-label {
+            color: var(--text-secondary);
+        }
+
+        .mapping-item .map-value {
+            font-weight: 600;
+            color: var(--accent-emerald);
+        }
+
+        .mapping-item .map-value.zero {
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="orb"></div>
+        <div class="orb"></div>
+        <div class="orb"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="badge">
+                <span class="dot"></span>
+                Online • Sẵn sàng
+            </div>
+            <h1>KBLT Converter</h1>
+            <p>Chuyển đổi tự động file danh sách lưu trú gốc sang đúng định dạng file mẫu KBLT</p>
+        </div>
+
+        <form id="convertForm" enctype="multipart/form-data">
+            <!-- Upload Section -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📁</span>
+                    Tải file lên
+                </div>
+
+                <div class="upload-grid" style="grid-template-columns: 1fr;">
+                    <div class="upload-zone" id="sourceZone" onclick="document.getElementById('sourceFile').click()">
+                        <div class="zone-content">
+                            <span class="zone-icon">📄</span>
+                            <div class="zone-label">Tải File Gốc Cần Chuyển Đổi</div>
+                            <div class="zone-hint">Kéo thả hoặc click để chọn (.xlsx) - File mẫu KBLT đã được cố định trên hệ thống</div>
+                            <div class="file-name" id="sourceFileName"></div>
+                        </div>
+                        <input type="file" id="sourceFile" name="source_file" accept=".xlsx,.xls">
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="settings-row">
+                    <label>
+                        <strong>Ngày đi dự kiến</strong> — Nếu thiếu, tự thêm = Ngày đến + 
+                    </label>
+                    <div class="number-input">
+                        <button type="button" onclick="changeExtraDays(-1)">−</button>
+                        <input type="number" id="extraDays" name="extra_days" value="3" min="0" max="30">
+                        <button type="button" onclick="changeExtraDays(1)">+</button>
+                    </div>
+                    <span style="font-size: 14px; color: var(--text-secondary);">ngày</span>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="submit-section">
+                <button type="submit" class="btn-convert" id="btnConvert" disabled>
+                    <div class="spinner"></div>
+                    <span class="btn-text">⚡ Chuyển đổi ngay</span>
+                </button>
+                <div class="error-banner" id="errorBanner"></div>
+            </div>
+        </form>
+
+        <!-- Results -->
+        <div class="results" id="results">
+            <div class="success-banner">
+                <div class="check-icon">✓</div>
+                <h3>Chuyển đổi thành công!</h3>
+                <p id="resultSummary">357 dòng dữ liệu đã được xử lý</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📊</span>
+                    Thống kê chi tiết
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotal">0</div>
+                        <div class="stat-label">Tổng dòng</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statGender">0</div>
+                        <div class="stat-label">Giới tính</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDocType">0</div>
+                        <div class="stat-label">Loại giấy tờ</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDate">0</div>
+                        <div class="stat-label">Sửa ngày</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDeparture">0</div>
+                        <div class="stat-label">Thêm ngày đi</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statProvince">0</div>
+                        <div class="stat-label">Tỉnh/TP</div>
+                    </div>
+                </div>
+
+                <div class="mapping-detail" id="mappingDetail">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 8px;">
+                <a id="downloadLink" href="#" class="btn-download" style="display: none;">
+                    📥 Tải file kết quả về
+                </a>
+                <button type="button" class="btn-reset" onclick="resetForm()">
+                    🔄 Làm mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== Upload zones =====
+        const zones = [
+            { zone: 'sourceZone', input: 'sourceFile', nameEl: 'sourceFileName' },
+        ];
+
+        zones.forEach(({ zone, input, nameEl }) => {
+            const zoneEl = document.getElementById(zone);
+            const inputEl = document.getElementById(input);
+            const nameDisplay = document.getElementById(nameEl);
+
+            // Drag events
+            ['dragenter', 'dragover'].forEach(event => {
+                zoneEl.addEventListener(event, (e) => {
+                    e.preventDefault();
+                    zoneEl.classList.add('dragover');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(event => {
+                zoneEl.addEventListener(event, (e) => {
+                    e.preventDefault();
+                    zoneEl.classList.remove('dragover');
+                });
+            });
+
+            zoneEl.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    inputEl.files = files;
+                    updateFileDisplay(zoneEl, nameDisplay, files[0].name);
+                    checkReady();
+                }
+            });
+
+            inputEl.addEventListener('change', () => {
+                if (inputEl.files.length > 0) {
+                    updateFileDisplay(zoneEl, nameDisplay, inputEl.files[0].name);
+                    checkReady();
+                }
+            });
+        });
+
+        function updateFileDisplay(zoneEl, nameEl, fileName) {
+            zoneEl.classList.add('has-file');
+            nameEl.textContent = '✓ ' + fileName;
+        }
+
+        function checkReady() {
+            const src = document.getElementById('sourceFile').files.length > 0;
+            document.getElementById('btnConvert').disabled = !src;
+        }
+
+        // ===== Extra days stepper =====
+        function changeExtraDays(delta) {
+            const input = document.getElementById('extraDays');
+            let val = parseInt(input.value) + delta;
+            val = Math.max(0, Math.min(30, val));
+            input.value = val;
+        }
+
+        // ===== Form submit =====
+        document.getElementById('convertForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('btnConvert');
+            const errorBanner = document.getElementById('errorBanner');
+            
+            btn.classList.add('loading');
+            btn.disabled = true;
+            errorBanner.classList.remove('show');
+
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Có lỗi xảy ra');
+                }
+
+                // Show results
+                showResults(data);
+
+            } catch (err) {
+                errorBanner.textContent = '❌ ' + err.message;
+                errorBanner.classList.add('show');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+
+        function showResults(data) {
+            const s = data.stats;
+
+            // Summary
+            document.getElementById('resultSummary').textContent = 
+                `${s.total_rows} dòng dữ liệu đã được xử lý thành công`;
+
+            // Stats with counter animation
+            animateCounter('statTotal', s.total_rows);
+            animateCounter('statGender', s.mapped_gender);
+            animateCounter('statDocType', s.mapped_doc_type);
+            animateCounter('statDate', s.fixed_date_format);
+            animateCounter('statDeparture', s.added_departure_date);
+            animateCounter('statProvince', s.mapped_province);
+
+            // Detail mapping
+            const details = [
+                { label: 'Giới tính (Nam/Nữ → M-Nam/F-Nữ)', value: s.mapped_gender },
+                { label: 'Loại giấy tờ (CCCD → 1-Thẻ CCCD)', value: s.mapped_doc_type },
+                { label: 'Nơi cư trú (Tạm trú → 2-Tạm trú)', value: s.mapped_residence },
+                { label: 'Quốc tịch (VNM → VNM-Viet Nam)', value: s.mapped_nationality },
+                { label: 'Tỉnh/Thành phố (mã hóa)', value: s.mapped_province },
+                { label: 'Phường/Xã (mã hóa)', value: s.mapped_ward },
+                { label: 'Lý do cư trú (mã hóa)', value: s.mapped_reason },
+                { label: 'Sửa format ngày (bỏ giờ)', value: s.fixed_date_format },
+                { label: 'Thêm ngày đi dự kiến', value: s.added_departure_date },
+            ];
+
+            const detailEl = document.getElementById('mappingDetail');
+            detailEl.innerHTML = details.map(d => `
+                <div class="mapping-item">
+                    <span class="map-label">${d.label}</span>
+                    <span class="map-value ${d.value === 0 ? 'zero' : ''}">${d.value} dòng</span>
+                </div>
+            `).join('');
+
+            // Show download button
+            const dlLink = document.getElementById('downloadLink');
+            dlLink.href = '/download/' + data.filename;
+            dlLink.style.display = 'inline-flex';
+
+            // Show results
+            document.getElementById('results').classList.add('show');
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function animateCounter(id, target) {
+            const el = document.getElementById(id);
+            let current = 0;
+            const step = Math.max(1, Math.ceil(target / 30));
+            const interval = setInterval(() => {
+                current += step;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(interval);
+                }
+                el.textContent = current;
+            }, 30);
+        }
+
+        function resetForm() {
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('convertForm').reset();
+            document.getElementById('sourceZone').classList.remove('has-file');
+            document.getElementById('sourceFileName').textContent = '';
+            document.getElementById('btnConvert').disabled = true;
+            document.getElementById('downloadLink').style.display = 'none';
+            document.getElementById('errorBanner').classList.remove('show');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
