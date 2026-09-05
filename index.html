@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KBLT Converter - Chuyển đổi file lưu trú</title>
+    <meta name="description" content="Chuyển đổi tự động file danh sách lưu trú gốc sang đúng định dạng file mẫu KBLT. Chạy trực tiếp trên trình duyệt.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-glass: rgba(255, 255, 255, 0.03);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --accent-cyan: #06b6d4;
+            --gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --gradient-success: linear-gradient(135deg, #10b981, #06b6d4);
+            --gradient-warm: linear-gradient(135deg, #f59e0b, #f43f5e);
+            --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-animation {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0; overflow: hidden;
+        }
+
+        .bg-animation .orb {
+            position: absolute; border-radius: 50%;
+            filter: blur(80px); opacity: 0.3;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-animation .orb:nth-child(1) {
+            width: 600px; height: 600px;
+            background: var(--accent-blue);
+            top: -200px; right: -100px;
+        }
+
+        .bg-animation .orb:nth-child(2) {
+            width: 400px; height: 400px;
+            background: var(--accent-purple);
+            bottom: -100px; left: -50px;
+            animation-delay: -7s;
+        }
+
+        .bg-animation .orb:nth-child(3) {
+            width: 300px; height: 300px;
+            background: var(--accent-emerald);
+            top: 50%; left: 50%;
+            animation-delay: -14s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(50px, -30px) scale(1.05); }
+            50% { transform: translate(-30px, 50px) scale(0.95); }
+            75% { transform: translate(30px, 30px) scale(1.02); }
+        }
+
+        .container {
+            position: relative; z-index: 1;
+            max-width: 960px; margin: 0 auto;
+            padding: 40px 24px 60px;
+        }
+
+        .header { text-align: center; margin-bottom: 48px; }
+
+        .header .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 100px;
+            font-size: 12px; font-weight: 600;
+            color: var(--accent-blue);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .header .badge .dot {
+            width: 6px; height: 6px;
+            background: var(--accent-emerald);
+            border-radius: 50%;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        .header .badge.loading-badge .dot {
+            background: var(--accent-amber);
+        }
+
+        .header .badge.error-badge {
+            border-color: rgba(244, 63, 94, 0.3);
+            color: var(--accent-rose);
+        }
+
+        .header .badge.error-badge .dot {
+            background: var(--accent-rose);
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .header h1 {
+            font-size: 42px; font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2; margin-bottom: 12px;
+        }
+
+        .header p {
+            font-size: 16px; color: var(--text-secondary);
+            max-width: 500px; margin: 0 auto; line-height: 1.6;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius);
+            padding: 32px; margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover { border-color: rgba(255, 255, 255, 0.12); }
+
+        .card-title {
+            font-size: 14px; font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 20px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .card-title .icon { font-size: 18px; }
+
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            padding: 36px 24px; text-align: center;
+            cursor: pointer; transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: ''; position: absolute; inset: 0;
+            background: var(--bg-glass); transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.08);
+            transform: scale(1.02);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .upload-zone.has-file {
+            border-color: var(--accent-emerald);
+            border-style: solid;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .upload-zone .zone-content { position: relative; z-index: 1; }
+        .upload-zone .zone-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+
+        .upload-zone .zone-label {
+            font-size: 15px; font-weight: 600;
+            color: var(--text-primary); margin-bottom: 6px;
+        }
+
+        .upload-zone .zone-hint { font-size: 12px; color: var(--text-muted); }
+
+        .upload-zone .file-name {
+            display: none; font-size: 13px;
+            color: var(--accent-emerald); font-weight: 500;
+            margin-top: 8px; word-break: break-all;
+        }
+
+        .upload-zone.has-file .file-name { display: block; }
+
+        input[type="file"] { display: none; }
+
+        .settings-row {
+            display: flex; align-items: center; gap: 16px;
+            margin-top: 24px; padding: 16px 20px;
+            background: var(--bg-glass);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-glass);
+        }
+
+        .settings-row label {
+            font-size: 14px; color: var(--text-secondary);
+            font-weight: 500; flex: 1;
+        }
+
+        .settings-row label strong { color: var(--text-primary); }
+
+        .number-input {
+            display: flex; align-items: center; gap: 0;
+            background: var(--bg-secondary);
+            border-radius: 8px; overflow: hidden;
+            border: 1px solid var(--border-glass);
+        }
+
+        .number-input button {
+            width: 36px; height: 36px; border: none;
+            background: transparent; color: var(--text-primary);
+            font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .number-input button:hover { background: rgba(255, 255, 255, 0.08); }
+
+        .number-input input {
+            width: 48px; height: 36px; border: none;
+            background: transparent; color: var(--text-primary);
+            text-align: center; font-size: 15px;
+            font-weight: 600; font-family: 'Inter', sans-serif;
+        }
+
+        .number-input input:focus { outline: none; }
+
+        .submit-section { text-align: center; margin-top: 32px; }
+
+        .btn-convert {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 16px 48px;
+            background: var(--gradient-primary);
+            color: white; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer; transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+
+        .btn-convert::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0; transition: opacity 0.3s;
+        }
+
+        .btn-convert:hover::before { opacity: 1; }
+
+        .btn-convert:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-convert:active { transform: translateY(0); }
+
+        .btn-convert:disabled {
+            opacity: 0.5; cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-convert .spinner {
+            display: none; width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .btn-convert.loading .spinner { display: block; }
+        .btn-convert.loading .btn-text { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .results { display: none; animation: slideUp 0.5s ease; }
+        .results.show { display: block; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.1));
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: var(--radius);
+            padding: 28px 32px; text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .success-banner .check-icon {
+            width: 56px; height: 56px;
+            background: var(--gradient-success);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px; font-size: 28px;
+            animation: scaleIn 0.5s ease;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            to { transform: scale(1); }
+        }
+
+        .success-banner h3 {
+            font-size: 20px; font-weight: 700;
+            color: var(--accent-emerald); margin-bottom: 6px;
+        }
+
+        .success-banner p { font-size: 14px; color: var(--text-secondary); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 20px 16px; text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .stat-card .stat-value {
+            font-size: 28px; font-weight: 800;
+            margin-bottom: 4px; line-height: 1;
+        }
+
+        .stat-card .stat-label {
+            font-size: 11px; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .stat-card:nth-child(1) .stat-value { color: var(--accent-blue); }
+        .stat-card:nth-child(2) .stat-value { color: var(--accent-purple); }
+        .stat-card:nth-child(3) .stat-value { color: var(--accent-emerald); }
+        .stat-card:nth-child(4) .stat-value { color: var(--accent-amber); }
+        .stat-card:nth-child(5) .stat-value { color: var(--accent-cyan); }
+        .stat-card:nth-child(6) .stat-value { color: var(--accent-rose); }
+
+        .btn-download {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 14px 40px;
+            background: var(--gradient-success);
+            color: white; border: none; border-radius: 12px;
+            font-size: 15px; font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer; transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-reset {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 32px;
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px; font-size: 14px; font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer; transition: all 0.3s ease;
+            margin-left: 12px;
+        }
+
+        .btn-reset:hover {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+
+        .error-banner {
+            display: none;
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px; margin-top: 16px;
+            color: var(--accent-rose); font-size: 14px;
+            animation: slideUp 0.3s ease;
+        }
+
+        .error-banner.show { display: block; }
+
+        .mapping-detail { margin-top: 16px; }
+
+        .mapping-item {
+            display: flex; justify-content: space-between;
+            align-items: center; padding: 10px 16px;
+            border-bottom: 1px solid var(--border-glass);
+            font-size: 13px;
+        }
+
+        .mapping-item:last-child { border-bottom: none; }
+        .mapping-item .map-label { color: var(--text-secondary); }
+        .mapping-item .map-value { font-weight: 600; color: var(--accent-emerald); }
+        .mapping-item .map-value.zero { color: var(--text-muted); }
+
+        @media (max-width: 640px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .header h1 { font-size: 28px; }
+            .card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="orb"></div>
+        <div class="orb"></div>
+        <div class="orb"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="badge loading-badge" id="statusBadge">
+                <span class="dot"></span>
+                <span id="statusText">Đang tải dữ liệu mẫu...</span>
+            </div>
+            <h1>KBLT Converter</h1>
+            <p>Chuyển đổi tự động file danh sách lưu trú gốc sang đúng định dạng file mẫu KBLT</p>
+        </div>
+
+        <form id="convertForm">
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📁</span>
+                    Tải file lên
+                </div>
+
+                <div class="upload-zone" id="sourceZone" onclick="document.getElementById('sourceFile').click()">
+                    <div class="zone-content">
+                        <span class="zone-icon">📄</span>
+                        <div class="zone-label">Tải File Gốc Cần Chuyển Đổi</div>
+                        <div class="zone-hint">Kéo thả hoặc click để chọn (.xlsx) — Xử lý ngay trên trình duyệt, không upload lên server</div>
+                        <div class="file-name" id="sourceFileName"></div>
+                    </div>
+                    <input type="file" id="sourceFile" accept=".xlsx,.xls">
+                </div>
+
+                <div class="settings-row">
+                    <label>
+                        <strong>Ngày đi dự kiến</strong> — Nếu thiếu, tự thêm = Ngày đến +
+                    </label>
+                    <div class="number-input">
+                        <button type="button" onclick="changeExtraDays(-1)">−</button>
+                        <input type="number" id="extraDays" value="3" min="0" max="30">
+                        <button type="button" onclick="changeExtraDays(1)">+</button>
+                    </div>
+                    <span style="font-size: 14px; color: var(--text-secondary);">ngày</span>
+                </div>
+            </div>
+
+            <div class="submit-section">
+                <button type="submit" class="btn-convert" id="btnConvert" disabled>
+                    <div class="spinner"></div>
+                    <span class="btn-text">⚡ Chuyển đổi ngay</span>
+                </button>
+                <div class="error-banner" id="errorBanner"></div>
+            </div>
+        </form>
+
+        <div class="results" id="results">
+            <div class="success-banner">
+                <div class="check-icon">✓</div>
+                <h3>Chuyển đổi thành công!</h3>
+                <p id="resultSummary"></p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📊</span>
+                    Thống kê chi tiết
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotal">0</div>
+                        <div class="stat-label">Tổng dòng</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statGender">0</div>
+                        <div class="stat-label">Giới tính</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDocType">0</div>
+                        <div class="stat-label">Loại giấy tờ</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDate">0</div>
+                        <div class="stat-label">Sửa ngày</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDeparture">0</div>
+                        <div class="stat-label">Thêm ngày đi</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statProvince">0</div>
+                        <div class="stat-label">Tỉnh/TP</div>
+                    </div>
+                </div>
+
+                <div class="mapping-detail" id="mappingDetail"></div>
+            </div>
+
+            <div style="text-align: center; margin-top: 8px;">
+                <button type="button" class="btn-download" id="btnDownload" style="display: none;">
+                    📥 Tải file kết quả về
+                </button>
+                <button type="button" class="btn-reset" onclick="resetForm()">
+                    🔄 Làm mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ============================================================
+// KBLT Converter — Client-side (port từ Python/openpyxl)
+// ============================================================
+
+let templateData = null;   // ArrayBuffer of template file
+let lookups = null;        // Lookup dictionaries built from template
+let outputWorkbook = null; // Last generated workbook for download
+
+// ===== Unicode NFC normalization =====
+function nfc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).trim().normalize('NFC');
+}
+
+// ===== Build lookup tables from template workbook =====
+function buildLookups(wbTpl) {
+    const lk = {};
+
+    // --- TINH_THANH ---
+    const wsTT = wbTpl.Sheets['TINH_THANH'];
+    const ttRows = XLSX.utils.sheet_to_json(wsTT, { header: 1, defval: null });
+    const tinhCode = {};
+    const tinhDisplay = {};
+    for (let i = 1; i < ttRows.length; i++) {
+        const row = ttRows[i];
+        if (row[1] && row[2]) {
+            const ma = String(row[0]).trim();
+            const ten = nfc(row[1]);
+            tinhCode[ten] = ma;
+            tinhDisplay[ten] = row[2];
+        }
+    }
+    lk.tinhCode = tinhCode;
+    lk.tinhDisplay = tinhDisplay;
+
+    // --- PHUONG_XA ---
+    const wsPX = wbTpl.Sheets['PHUONG_XA'];
+    const pxRows = XLSX.utils.sheet_to_json(wsPX, { header: 1, defval: null });
+    const pxMap = {};
+    for (let i = 1; i < pxRows.length; i++) {
+        const row = pxRows[i];
+        if (row[1] && row[2] && row[3]) {
+            const maTinh = String(row[2]).trim();
+            const tenPx = nfc(row[1]);
+            if (!pxMap[maTinh]) pxMap[maTinh] = {};
+            pxMap[maTinh][tenPx] = row[3];
+        }
+    }
+    lk.pxMap = pxMap;
+
+    // --- DANH_MUC ---
+    const wsDM = wbTpl.Sheets['DANH_MUC'];
+    const dmRows = XLSX.utils.sheet_to_json(wsDM, { header: 1, defval: null });
+    const loaiGiayTo = {};
+    const noiCuTru = {};
+    const lyDo = {};
+    const gioiTinh = {};
+    const quocTich = {};
+
+    for (let i = 1; i < dmRows.length; i++) {
+        const row = dmRows[i];
+
+        // Col 0: Loại giấy tờ
+        if (row[0]) {
+            const val = nfc(row[0]);
+            loaiGiayTo[val] = val;
+            const parts = val.split(' - ');
+            if (parts.length > 1) {
+                const short = parts[1].trim();
+                loaiGiayTo[short] = val;
+                loaiGiayTo[short.replace('Thẻ ', '')] = val;
+                if (short.includes('Khác') || short.includes('khác')) {
+                    loaiGiayTo['Giấy tờ khác'] = val;
+                } else if (short.includes('CCCD')) {
+                    loaiGiayTo['CCCD'] = val;
+                } else if (short.includes('CMND')) {
+                    loaiGiayTo['CMND'] = val;
+                }
+            }
+        }
+
+        // Col 1: Nơi cư trú
+        if (row[1]) {
+            const val = nfc(row[1]);
+            noiCuTru[val] = val;
+            const parts = val.split(' - ');
+            if (parts.length > 1) {
+                noiCuTru[parts[1].trim()] = val;
+            }
+            if (val.includes('Khác')) {
+                noiCuTru['Khác'] = val;
+                noiCuTru['Địa chỉ khác'] = val;
+            }
+        }
+
+        // Col 2: Lý do
+        if (row[2]) {
+            const val = nfc(row[2]);
+            lyDo[val] = val;
+            const parts = val.split(' - ');
+            if (parts.length > 1) {
+                const short = parts[1].trim();
+                lyDo[short] = val;
+                if (short === 'Chữa bệnh') {
+                    lyDo['Khám chữa bệnh'] = val;
+                    lyDo['KCB'] = val;
+                }
+            }
+        }
+
+        // Col 3: Giới tính
+        if (row[3]) {
+            const val = nfc(row[3]);
+            gioiTinh[val] = val;
+            const parts = val.split(' - ');
+            if (parts.length > 1) {
+                gioiTinh[parts[0].trim()] = val;
+                gioiTinh[parts[1].trim()] = val;
+            }
+        }
+
+        // Col 4: Quốc tịch
+        if (row[4]) {
+            const val = nfc(row[4]);
+            quocTich[val] = val;
+            const parts = val.split(' - ');
+            if (parts.length > 1) {
+                quocTich[parts[0].trim()] = val;
+            }
+            if (val.includes('Viet Nam') || val.includes('Việt Nam')) {
+                quocTich['VNM'] = val;
+            }
+        }
+    }
+
+    lk.loaiGiayTo = loaiGiayTo;
+    lk.noiCuTru = noiCuTru;
+    lk.lyDo = lyDo;
+    lk.gioiTinh = gioiTinh;
+    lk.quocTich = quocTich;
+
+    return lk;
+}
+
+// ===== Mapping helpers =====
+function mapTinh(rawValue, lk) {
+    if (!rawValue) return '';
+    const val = nfc(rawValue);
+    const clean = val.replace('Tỉnh ', '').replace('Thành phố ', 'TP. ');
+    if (lk.tinhDisplay[clean]) return lk.tinhDisplay[clean];
+    const clean2 = val.replace('Tỉnh ', '').replace('Thành phố ', '');
+    for (const [k, v] of Object.entries(lk.tinhDisplay)) {
+        if (clean2.includes(k) || k.includes(clean2)) return v;
+    }
+    return val;
+}
+
+function getTinhCode(rawValue, lk) {
+    if (!rawValue) return '';
+    const val = nfc(rawValue);
+    const clean = val.replace('Tỉnh ', '').replace('Thành phố ', 'TP. ');
+    return lk.tinhCode[clean] || '';
+}
+
+function mapPhuongXa(rawPx, tinhCode, lk) {
+    if (!rawPx || !tinhCode) return '';
+    const val = nfc(rawPx);
+    if (lk.pxMap[tinhCode] && lk.pxMap[tinhCode][val]) {
+        return lk.pxMap[tinhCode][val];
+    }
+    return val;
+}
+
+function mapGeneric(rawValue, lookupDict) {
+    if (!rawValue) return '';
+    const val = nfc(rawValue);
+    return lookupDict[val] || val;
+}
+
+function fixDate(rawValue) {
+    if (!rawValue) return [null, null];
+    const val = String(rawValue).trim();
+    const datePart = val.includes(' ') ? val.split(' ')[0] : val;
+    // Parse dd/mm/yyyy
+    const m = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+        const dt = new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+        if (!isNaN(dt.getTime())) return [datePart, dt];
+    }
+    return [datePart, null];
+}
+
+function formatDate(dt) {
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const yyyy = dt.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+}
+
+// ===== Find source columns dynamically =====
+function findSourceColumns(srcRows) {
+    let headerRowIdx = -1;
+    let colMap = {};
+
+    // Scan first 20 rows for "Họ và tên"
+    const scanLimit = Math.min(20, srcRows.length);
+    for (let r = 0; r < scanLimit; r++) {
+        const row = srcRows[r];
+        if (!row) continue;
+        for (let c = 0; c < row.length; c++) {
+            const val = nfc(row[c]).toLowerCase();
+            if (val.includes('họ và tên')) {
+                headerRowIdx = r;
+                break;
+            }
+        }
+        if (headerRowIdx >= 0) break;
+    }
+
+    if (headerRowIdx < 0) return [null, null];
+
+    // Read all headers
+    const headerRow = srcRows[headerRowIdx];
+    const headers = headerRow.map(h => nfc(h).toLowerCase());
+
+    const hasDiNgay = headers.some(h => h && h.includes('đi ngày'));
+    // const hasTuNgay = headers.some(h => h && h.includes('từ ngày'));
+
+    for (let c = 0; c < headers.length; c++) {
+        const val = headers[c];
+        if (!val) continue;
+
+        if (val.includes('họ và tên'))
+            colMap.ho_ten = c;
+        else if (val.includes('ngày, tháng, năm sinh') || val.includes('ngày sinh'))
+            colMap.ngay_sinh = c;
+        else if (val.includes('giới tính'))
+            colMap.gioi_tinh = c;
+        else if (val.includes('quốc tịch'))
+            colMap.quoc_tich = c;
+        else if (val.includes('loại giấy tờ'))
+            colMap.loai_giay_to = c;
+        else if (val.includes('tên giấy tờ'))
+            colMap.ten_giay_to = c;
+        else if (val.includes('số giấy tờ'))
+            colMap.so_giay_to = c;
+        else if (val.includes('cmnd') || val.includes('cccd') || val.includes('số định danh'))
+            colMap.so_cccd = c;
+        else if (val.includes('hộ chiếu'))
+            colMap.so_ho_chieu = c;
+        else if (val.includes('giấy tờ khác'))
+            colMap.so_giay_to_khac = c;
+        else if (val.includes('số điện thoại'))
+            colMap.so_dt = c;
+        else if (val.includes('loại cư trú') || val.includes('nơi cư trú'))
+            colMap.noi_cu_tru = c;
+        else if (val.includes('tỉnh/tp') || val.includes('tỉnh, thành') || val.includes('tỉnh thành'))
+            colMap.tinh_tp = c;
+        else if (val.includes('phường/xã') || val.includes('phường xã'))
+            colMap.phuong_xa = c;
+        else if (val.includes('địa chỉ chi tiết') || val.includes('số nhà'))
+            colMap.dia_chi = c;
+        else if (val.includes('từ ngày') || val.includes('ngày đến'))
+            colMap.ngay_den = c;
+        else if (val.includes('đi ngày') || val.includes('ngày đi'))
+            colMap.ngay_di = c;
+        else if (val.includes('đến ngày')) {
+            if (hasDiNgay) colMap.ngay_den = c;
+            else colMap.ngay_di = c;
+        }
+        else if (val.includes('lý do lưu trú') || val.includes('lý do cư trú'))
+            colMap.ly_do = c;
+        else if (val.includes('phòng/khoa') || val.includes('số phòng'))
+            colMap.phong_khoa = c;
+    }
+
+    return [headerRowIdx, colMap];
+}
+
+// ===== SheetJS cell helpers =====
+function setCell(ws, r, c, value) {
+    const ref = XLSX.utils.encode_cell({ r: r, c: c });
+    if (value === null || value === undefined || value === '') {
+        ws[ref] = { v: '', t: 's' };
+    } else if (typeof value === 'number') {
+        ws[ref] = { v: value, t: 'n' };
+    } else {
+        ws[ref] = { v: String(value), t: 's' };
+    }
+}
+
+function clearCells(ws, startRow, endRow, startCol, endCol) {
+    for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+            const ref = XLSX.utils.encode_cell({ r: r, c: c });
+            delete ws[ref];
+        }
+    }
+}
+
+// ===== Main conversion logic =====
+function processFiles(srcArrayBuffer, extraDays) {
+    const stats = {
+        total_rows: 0, mapped_gender: 0, mapped_doc_type: 0,
+        mapped_residence: 0, mapped_province: 0, mapped_ward: 0,
+        mapped_nationality: 0, mapped_reason: 0, fixed_date_format: 0,
+        added_departure_date: 0, errors: [],
+    };
+
+    // Read source workbook
+    let wbSrc;
+    try {
+        wbSrc = XLSX.read(srcArrayBuffer, { type: 'array', cellDates: false });
+    } catch (e) {
+        stats.errors.push('Lỗi đọc file gốc: ' + e.message);
+        return [null, stats];
+    }
+
+    // Read template workbook (fresh copy each time)
+    let wbTpl;
+    try {
+        wbTpl = XLSX.read(templateData, { type: 'array', cellDates: false });
+    } catch (e) {
+        stats.errors.push('Lỗi đọc file mẫu: ' + e.message);
+        return [null, stats];
+    }
+
+    const wsTpl = wbTpl.Sheets['DS_KHACH_VIET_NAM_LUU_TRU'];
+    if (!wsTpl) {
+        stats.errors.push('Không tìm thấy sheet "DS_KHACH_VIET_NAM_LUU_TRU" trong file mẫu.');
+        return [null, stats];
+    }
+
+    const wsSrc = wbSrc.Sheets[wbSrc.SheetNames[0]];
+    const srcRows = XLSX.utils.sheet_to_json(wsSrc, { header: 1, defval: null, raw: true });
+
+    // Build lookups from template
+    const lk = buildLookups(wbTpl);
+
+    // Find source columns
+    const [headerRowIdx, colMap] = findSourceColumns(srcRows);
+    if (headerRowIdx === null || !('ho_ten' in colMap)) {
+        stats.errors.push('Không tìm thấy dòng tiêu đề (phải có cột "Họ và tên") trong file gốc.');
+        return [null, stats];
+    }
+
+    // Clear template data rows (row index 2 = Excel row 3, 0-indexed)
+    const tplRange = XLSX.utils.decode_range(wsTpl['!ref'] || 'A1');
+    clearCells(wsTpl, 2, tplRange.e.r, 0, 18);
+
+    const sourceStart = headerRowIdx + 1;
+    let rowCount = 0;
+
+    function safeGet(row, key) {
+        if (key in colMap && row && colMap[key] < row.length) {
+            return row[colMap[key]];
+        }
+        return null;
+    }
+
+    for (let i = sourceStart; i < srcRows.length; i++) {
+        const srcRow = srcRows[i];
+        if (!srcRow) continue;
+
+        const hoTen = safeGet(srcRow, 'ho_ten');
+        if (!hoTen || String(hoTen).trim().startsWith('<')) continue;
+
+        const tplRow = 2 + rowCount; // 0-indexed (Excel row 3+)
+        stats.total_rows++;
+
+        // Col 1: STT
+        setCell(wsTpl, tplRow, 0, rowCount + 1);
+        // Col 2: Họ và tên
+        setCell(wsTpl, tplRow, 1, hoTen);
+
+        // Col 3: Ngày sinh
+        let ngaySinhRaw = String(safeGet(srcRow, 'ngay_sinh') || '').trim();
+        if (ngaySinhRaw && ngaySinhRaw.length === 4 && /^\d{4}$/.test(ngaySinhRaw)) {
+            ngaySinhRaw = '01/01/' + ngaySinhRaw;
+        }
+        setCell(wsTpl, tplRow, 2, ngaySinhRaw);
+
+        // Col 4: Giới tính
+        const gtRaw = nfc(safeGet(srcRow, 'gioi_tinh'));
+        const gtMapped = mapGeneric(gtRaw, lk.gioiTinh);
+        setCell(wsTpl, tplRow, 3, gtMapped);
+        if (gtMapped !== gtRaw) stats.mapped_gender++;
+
+        // Col 5: Quốc tịch
+        const qtRaw = nfc(safeGet(srcRow, 'quoc_tich'));
+        const qtMapped = mapGeneric(qtRaw, lk.quocTich);
+        setCell(wsTpl, tplRow, 4, qtMapped);
+        if (qtMapped !== qtRaw) stats.mapped_nationality++;
+
+        // Col 6 & 8: Loại giấy tờ & Số giấy tờ
+        let lgtRaw, soGtRaw;
+        if ('loai_giay_to' in colMap && 'so_giay_to' in colMap) {
+            lgtRaw = nfc(safeGet(srcRow, 'loai_giay_to'));
+            soGtRaw = safeGet(srcRow, 'so_giay_to');
+        } else {
+            const soCccd = safeGet(srcRow, 'so_cccd');
+            const soHc = safeGet(srcRow, 'so_ho_chieu');
+            const soGtk = safeGet(srcRow, 'so_giay_to_khac');
+            if (soCccd) {
+                lgtRaw = 'CCCD'; soGtRaw = soCccd;
+            } else if (soHc) {
+                lgtRaw = 'Hộ chiếu'; soGtRaw = soHc;
+            } else if (soGtk) {
+                lgtRaw = 'Thẻ BHYT'; soGtRaw = soGtk;
+            } else {
+                lgtRaw = ''; soGtRaw = '';
+            }
+        }
+
+        const lgtMapped = mapGeneric(lgtRaw, lk.loaiGiayTo);
+        setCell(wsTpl, tplRow, 5, lgtMapped);
+        if (lgtMapped !== lgtRaw) stats.mapped_doc_type++;
+
+        // Col 7: Tên giấy tờ
+        setCell(wsTpl, tplRow, 6, safeGet(srcRow, 'ten_giay_to') || '');
+        // Col 8: Số giấy tờ
+        setCell(wsTpl, tplRow, 7, soGtRaw || '');
+        // Col 9: Số điện thoại
+        setCell(wsTpl, tplRow, 8, safeGet(srcRow, 'so_dt') || '');
+
+        // Col 10: Nơi cư trú
+        const nctRaw = nfc(safeGet(srcRow, 'noi_cu_tru'));
+        const nctMapped = mapGeneric(nctRaw, lk.noiCuTru);
+        setCell(wsTpl, tplRow, 9, nctMapped);
+        if (nctMapped !== nctRaw) stats.mapped_residence++;
+
+        // Col 11: Tỉnh/TP
+        const tinhRaw = safeGet(srcRow, 'tinh_tp');
+        const tinhCodeVal = getTinhCode(tinhRaw, lk);
+        const tinhMapped = mapTinh(tinhRaw, lk);
+        setCell(wsTpl, tplRow, 10, tinhMapped);
+        if (tinhMapped !== nfc(tinhRaw)) stats.mapped_province++;
+
+        // Col 12: Phường/Xã
+        const pxRaw = safeGet(srcRow, 'phuong_xa');
+        const pxMapped = mapPhuongXa(pxRaw, tinhCodeVal, lk);
+        setCell(wsTpl, tplRow, 11, pxMapped);
+        if (pxMapped !== nfc(pxRaw)) stats.mapped_ward++;
+
+        // Col 13: Địa chỉ chi tiết
+        setCell(wsTpl, tplRow, 12, safeGet(srcRow, 'dia_chi') || '');
+
+        // Col 14: Ngày đến
+        const [ndStr, ndDt] = fixDate(safeGet(srcRow, 'ngay_den'));
+        setCell(wsTpl, tplRow, 13, ndStr || '');
+        const ngayDenRaw = safeGet(srcRow, 'ngay_den');
+        if (ngayDenRaw && String(ngayDenRaw).includes(' ')) {
+            stats.fixed_date_format++;
+        }
+
+        // Col 15: Ngày đi
+        const ndiRaw = safeGet(srcRow, 'ngay_di');
+        if (ndiRaw && String(ndiRaw).trim()) {
+            const [ndiStr] = fixDate(ndiRaw);
+            setCell(wsTpl, tplRow, 14, ndiStr || '');
+        } else {
+            if (ndDt) {
+                const ngayDi = new Date(ndDt);
+                ngayDi.setDate(ngayDi.getDate() + extraDays);
+                setCell(wsTpl, tplRow, 14, formatDate(ngayDi));
+                stats.added_departure_date++;
+            } else {
+                setCell(wsTpl, tplRow, 14, '');
+            }
+        }
+
+        // Col 16: Phòng/Khoa
+        let phongKhoaRaw = String(safeGet(srcRow, 'phong_khoa') || '').trim();
+        const pkNorm = nfc(phongKhoaRaw).toUpperCase();
+        if (pkNorm.includes('KHOA NGOẠI THẦN KINH') && pkNorm.includes('CHẤN THƯƠNG CHỈNH HÌNH')) {
+            phongKhoaRaw = 'NGOẠI TK - CTCH';
+        }
+        setCell(wsTpl, tplRow, 15, phongKhoaRaw);
+
+        // Col 17: Lý do
+        const lydoRaw = nfc(safeGet(srcRow, 'ly_do'));
+        const lydoMapped = mapGeneric(lydoRaw, lk.lyDo);
+        setCell(wsTpl, tplRow, 16, lydoMapped);
+        if (lydoMapped !== lydoRaw) stats.mapped_reason++;
+
+        rowCount++;
+    }
+
+    // Update sheet range to include all new rows
+    const finalRange = XLSX.utils.decode_range(wsTpl['!ref'] || 'A1');
+    finalRange.e.r = Math.max(finalRange.e.r, 2 + rowCount - 1);
+    finalRange.e.c = Math.max(finalRange.e.c, 16);
+    wsTpl['!ref'] = XLSX.utils.encode_range(finalRange);
+
+    return [wbTpl, stats];
+}
+
+// ===== Load template on page load =====
+async function loadTemplate() {
+    const badge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+
+    try {
+        const response = await fetch('data/tblt_vn_import.xlsx');
+        if (!response.ok) throw new Error('Không tải được file mẫu');
+        templateData = await response.arrayBuffer();
+
+        // Verify template is valid
+        const testWb = XLSX.read(templateData, { type: 'array' });
+        if (!testWb.Sheets['DS_KHACH_VIET_NAM_LUU_TRU']) {
+            throw new Error('File mẫu thiếu sheet DS_KHACH_VIET_NAM_LUU_TRU');
+        }
+
+        badge.className = 'badge';
+        statusText.textContent = 'Online • Sẵn sàng';
+    } catch (e) {
+        badge.className = 'badge error-badge';
+        statusText.textContent = 'Lỗi: ' + e.message;
+        console.error('Template load error:', e);
+    }
+}
+
+loadTemplate();
+
+// ===== Upload zone interactions =====
+const sourceZone = document.getElementById('sourceZone');
+const sourceFile = document.getElementById('sourceFile');
+const sourceFileName = document.getElementById('sourceFileName');
+
+['dragenter', 'dragover'].forEach(evt => {
+    sourceZone.addEventListener(evt, e => {
+        e.preventDefault();
+        sourceZone.classList.add('dragover');
+    });
+});
+
+['dragleave', 'drop'].forEach(evt => {
+    sourceZone.addEventListener(evt, e => {
+        e.preventDefault();
+        sourceZone.classList.remove('dragover');
+    });
+});
+
+sourceZone.addEventListener('drop', e => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        sourceFile.files = files;
+        updateFileDisplay(files[0].name);
+        checkReady();
+    }
+});
+
+sourceFile.addEventListener('change', () => {
+    if (sourceFile.files.length > 0) {
+        updateFileDisplay(sourceFile.files[0].name);
+        checkReady();
+    }
+});
+
+function updateFileDisplay(fileName) {
+    sourceZone.classList.add('has-file');
+    sourceFileName.textContent = '✓ ' + fileName;
+}
+
+function checkReady() {
+    const ready = sourceFile.files.length > 0 && templateData !== null;
+    document.getElementById('btnConvert').disabled = !ready;
+}
+
+// ===== Extra days stepper =====
+function changeExtraDays(delta) {
+    const input = document.getElementById('extraDays');
+    let val = parseInt(input.value) + delta;
+    val = Math.max(0, Math.min(30, val));
+    input.value = val;
+}
+
+// ===== Form submit =====
+document.getElementById('convertForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn = document.getElementById('btnConvert');
+    const errorBanner = document.getElementById('errorBanner');
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorBanner.classList.remove('show');
+
+    // Small delay to allow UI to update
+    await new Promise(r => setTimeout(r, 50));
+
+    try {
+        if (!templateData) throw new Error('File mẫu chưa được tải. Vui lòng refresh trang.');
+
+        const file = sourceFile.files[0];
+        if (!file) throw new Error('Vui lòng chọn file gốc.');
+
+        // Read source file
+        const srcBuffer = await file.arrayBuffer();
+        const extraDays = parseInt(document.getElementById('extraDays').value) || 3;
+
+        // Process
+        const [resultWb, stats] = processFiles(new Uint8Array(srcBuffer), extraDays);
+
+        if (stats.errors.length > 0) {
+            throw new Error(stats.errors.join('\n'));
+        }
+
+        if (!resultWb) {
+            throw new Error('Không có dữ liệu để chuyển đổi.');
+        }
+
+        // Store for download
+        outputWorkbook = resultWb;
+
+        // Show results
+        showResults(stats);
+
+    } catch (err) {
+        errorBanner.textContent = '❌ ' + err.message;
+        errorBanner.classList.add('show');
+    } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+});
+
+function showResults(stats) {
+    document.getElementById('resultSummary').textContent =
+        stats.total_rows + ' dòng dữ liệu đã được xử lý thành công';
+
+    animateCounter('statTotal', stats.total_rows);
+    animateCounter('statGender', stats.mapped_gender);
+    animateCounter('statDocType', stats.mapped_doc_type);
+    animateCounter('statDate', stats.fixed_date_format);
+    animateCounter('statDeparture', stats.added_departure_date);
+    animateCounter('statProvince', stats.mapped_province);
+
+    const details = [
+        { label: 'Giới tính (Nam/Nữ → M-Nam/F-Nữ)', value: stats.mapped_gender },
+        { label: 'Loại giấy tờ (CCCD → 1-Thẻ CCCD)', value: stats.mapped_doc_type },
+        { label: 'Nơi cư trú (Tạm trú → 2-Tạm trú)', value: stats.mapped_residence },
+        { label: 'Quốc tịch (VNM → VNM-Viet Nam)', value: stats.mapped_nationality },
+        { label: 'Tỉnh/Thành phố (mã hóa)', value: stats.mapped_province },
+        { label: 'Phường/Xã (mã hóa)', value: stats.mapped_ward },
+        { label: 'Lý do cư trú (mã hóa)', value: stats.mapped_reason },
+        { label: 'Sửa format ngày (bỏ giờ)', value: stats.fixed_date_format },
+        { label: 'Thêm ngày đi dự kiến', value: stats.added_departure_date },
+    ];
+
+    document.getElementById('mappingDetail').innerHTML = details.map(d =>
+        `<div class="mapping-item">
+            <span class="map-label">${d.label}</span>
+            <span class="map-value ${d.value === 0 ? 'zero' : ''}">${d.value} dòng</span>
+        </div>`
+    ).join('');
+
+    // Show download button
+    const dlBtn = document.getElementById('btnDownload');
+    dlBtn.style.display = 'inline-flex';
+    dlBtn.onclick = downloadResult;
+
+    document.getElementById('results').classList.add('show');
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function downloadResult() {
+    if (!outputWorkbook) return;
+    XLSX.writeFile(outputWorkbook, 'KBLT_Converted.xlsx');
+}
+
+function animateCounter(id, target) {
+    const el = document.getElementById(id);
+    let current = 0;
+    const step = Math.max(1, Math.ceil(target / 30));
+    const interval = setInterval(() => {
+        current += step;
+        if (current >= target) {
+            current = target;
+            clearInterval(interval);
+        }
+        el.textContent = current;
+    }, 30);
+}
+
+function resetForm() {
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('convertForm').reset();
+    sourceZone.classList.remove('has-file');
+    sourceFileName.textContent = '';
+    document.getElementById('btnConvert').disabled = true;
+    document.getElementById('btnDownload').style.display = 'none';
+    document.getElementById('errorBanner').classList.remove('show');
+    outputWorkbook = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
