@@ -1219,7 +1219,11 @@ function showResults(stats) {
 
 function downloadResult() {
     if (!outputWorkbook) return;
-    XLSX.writeFile(outputWorkbook, 'KBLT_Converted.xlsx');
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const fileName = `KBLT_${dd}${mm}.xlsx`;
+    XLSX.writeFile(outputWorkbook, fileName);
 }
 
 function animateCounter(id, target) {
