@@ -666,6 +666,9 @@
             <button type="button" class="tab-item" onclick="switchTab('discharge')">
                 <span class="tab-icon">🔍</span> Kiểm tra ra viện
             </button>
+            <button type="button" class="tab-item" onclick="switchTab('bca')">
+                <span class="tab-icon">🏥</span> So sánh BCA
+            </button>
         </div>
 
         <div class="tab-content active" id="tab-converter">
@@ -862,6 +865,106 @@
                 </div>
             </div>
         </div><!-- end tab-discharge -->
+
+        <div class="tab-content" id="tab-bca">
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">🏥</span>
+                    So sánh file BCA với file kết quả
+                </div>
+
+                <div class="discharge-upload-grid">
+                    <div class="upload-zone" id="bcaZone" onclick="document.getElementById('bcaFile').click()">
+                        <div class="zone-content">
+                            <span class="zone-icon">🌐</span>
+                            <div class="zone-label">File tải từ web BCA</div>
+                            <div class="zone-hint">File tải về từ hệ thống lưu trú Bộ Công An (.xlsx)</div>
+                            <div class="file-name" id="bcaFileName"></div>
+                        </div>
+                        <input type="file" id="bcaFile" accept=".xlsx,.xls">
+                    </div>
+
+                    <div class="upload-zone" id="resultZone" onclick="document.getElementById('resultFile').click()">
+                        <div class="zone-content">
+                            <span class="zone-icon">📄</span>
+                            <div class="zone-label">File kết quả đã chuyển đổi</div>
+                            <div class="zone-hint">File KBLT output từ tab chuyển đổi (.xlsx)</div>
+                            <div class="file-name" id="resultFileName"></div>
+                        </div>
+                        <input type="file" id="resultFile" accept=".xlsx,.xls">
+                    </div>
+                </div>
+            </div>
+
+            <div class="submit-section">
+                <button type="button" class="btn-compare" id="btnCompareBca" disabled onclick="runBcaComparison()">
+                    <div class="spinner"></div>
+                    <span class="btn-text">🏥 So sánh ngay</span>
+                </button>
+                <div class="error-banner" id="errorBannerBca"></div>
+            </div>
+
+            <div class="discharge-results" id="bcaResults">
+                <div class="discharge-banner">
+                    <div class="check-icon">🏥</div>
+                    <h3>Kết quả so sánh BCA</h3>
+                    <p id="bcaSummary"></p>
+                </div>
+
+                <div class="discharge-stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statBca">0</div>
+                        <div class="stat-label">BN trên BCA</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statResult">0</div>
+                        <div class="stat-label">BN file kết quả</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statBcaDischarged">0</div>
+                        <div class="stat-label">Đã ra viện</div>
+                    </div>
+                </div>
+
+                <div class="card" id="bcaTableCard" style="display: none;">
+                    <div class="card-title">
+                        <span class="icon">📋</span>
+                        Danh sách BN đã ra viện (có trên BCA, không còn trong kết quả)
+                        <span class="discharge-badge" id="bcaDischargeCount"></span>
+                    </div>
+                    <div class="discharge-table-wrap">
+                        <table class="discharge-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ và tên</th>
+                                    <th>Ngày sinh</th>
+                                    <th>Số giấy tờ</th>
+                                    <th>Phòng/Khoa</th>
+                                    <th>Ngày đến</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bcaTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="noBcaDischargeMsg" class="no-discharge" style="display: none;">
+                    <span class="nd-icon">✅</span>
+                    <strong>Không có bệnh nhân nào ra viện</strong>
+                    <p style="margin-top: 6px;">Tất cả BN trên BCA đều có trong file kết quả.</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 8px;">
+                    <button type="button" class="btn-download" id="btnDownloadBca" style="display: none;">
+                        📥 Tải danh sách ra viện (.xlsx)
+                    </button>
+                    <button type="button" class="btn-reset" onclick="resetBca()">
+                        🔄 Làm mới
+                    </button>
+                </div>
+            </div>
+        </div><!-- end tab-bca -->
     </div>
 
 <script>
@@ -1902,6 +2005,232 @@ function resetDischarge() {
     document.getElementById('btnDownloadDischarge').style.display = 'none';
     document.getElementById('errorBannerDischarge').classList.remove('show');
     dischargedList = [];
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+// BCA COMPARISON — So sánh file BCA với file kết quả
+// ============================================================
+
+let bcaDischargedList = []; // Store for download
+
+// Upload zone setup for BCA & Result
+const bcaZone = document.getElementById('bcaZone');
+const bcaFile = document.getElementById('bcaFile');
+const bcaFileName = document.getElementById('bcaFileName');
+const resultZone = document.getElementById('resultZone');
+const resultFile = document.getElementById('resultFile');
+const resultFileName = document.getElementById('resultFileName');
+
+setupDischargeZone(bcaZone, bcaFile, bcaFileName); // Reuse existing function
+setupDischargeZone(resultZone, resultFile, resultFileName);
+
+// Override checkDischargeReady for BCA zones — add separate listener
+bcaFile.addEventListener('change', checkBcaReady);
+resultFile.addEventListener('change', checkBcaReady);
+bcaZone.addEventListener('drop', () => setTimeout(checkBcaReady, 100));
+resultZone.addEventListener('drop', () => setTimeout(checkBcaReady, 100));
+
+function checkBcaReady() {
+    const ready = bcaFile.files.length > 0 && resultFile.files.length > 0;
+    document.getElementById('btnCompareBca').disabled = !ready;
+}
+
+// ===== Extract patients from KBLT-format file (fixed columns) =====
+// KBLT template: Col 1=Họ tên, Col 2=Ngày sinh, Col 7=Số giấy tờ, Col 13=Ngày đến, Col 15=Phòng/Khoa
+function extractKbltPatients(arrayBuffer) {
+    const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+
+    const uniqueMap = new Map();
+
+    // Find header row — look for "Họ và tên" or start from row 2 (index 2) for KBLT format
+    let startRow = 2; // Default KBLT template: data starts at row 3 (0-indexed: 2)
+    for (let r = 0; r < Math.min(10, rows.length); r++) {
+        const row = rows[r];
+        if (!row) continue;
+        for (let c = 0; c < row.length; c++) {
+            const val = nfc(row[c]).toLowerCase();
+            if (val.includes('họ và tên') || val.includes('ho va ten')) {
+                startRow = r + 1;
+                break;
+            }
+        }
+    }
+
+    for (let i = startRow; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+
+        const hoTen = row[1]; // Col B = Họ và tên
+        if (!hoTen || String(hoTen).trim() === '' || String(hoTen).trim().startsWith('<')) continue;
+
+        const hoTenStr = String(hoTen).trim();
+        const ngaySinh = String(row[2] || '').trim();  // Col C = Ngày sinh
+        const docId = String(row[7] || '').trim();      // Col H = Số giấy tờ
+        const ngayDen = String(row[13] || '').trim();   // Col N = Ngày đến
+        const phongKhoa = String(row[15] || '').trim(); // Col P = Phòng/Khoa
+
+        const nameKey = normalizeName(hoTenStr) + '|' + ngaySinh;
+        const dedupKey = docId ? (docId + '||' + nameKey) : nameKey;
+
+        if (!uniqueMap.has(dedupKey)) {
+            uniqueMap.set(dedupKey, {
+                hoTen: hoTenStr,
+                ngaySinh: ngaySinh,
+                docId: docId,
+                phongKhoa: phongKhoa,
+                ngayDen: ngayDen,
+                nameKey: nameKey
+            });
+        }
+    }
+
+    return Array.from(uniqueMap.values());
+}
+
+// ===== Run BCA comparison =====
+async function runBcaComparison() {
+    const btn = document.getElementById('btnCompareBca');
+    const errorBanner = document.getElementById('errorBannerBca');
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorBanner.classList.remove('show');
+
+    await new Promise(r => setTimeout(r, 50));
+
+    try {
+        const bFile = bcaFile.files[0];
+        const rFile = resultFile.files[0];
+        if (!bFile || !rFile) throw new Error('Vui lòng chọn cả 2 file.');
+
+        const bBuffer = new Uint8Array(await bFile.arrayBuffer());
+        const rBuffer = new Uint8Array(await rFile.arrayBuffer());
+
+        const bcaPatients = extractKbltPatients(bBuffer);
+        const resultPatients = extractKbltPatients(rBuffer);
+        const resultLookup = buildTodayLookup(resultPatients); // Reuse existing function
+
+        // Find discharged: in BCA but NOT in result
+        const discharged = [];
+        for (const p of bcaPatients) {
+            let matched = false;
+
+            if (p.docId) {
+                if (resultLookup.combinedSet.has(p.docId + '||' + p.nameKey)) {
+                    matched = true;
+                } else if (resultLookup.docIdSet.has(p.docId)) {
+                    matched = true;
+                } else if (resultLookup.nameKeySet.has(p.nameKey)) {
+                    matched = true;
+                }
+            } else {
+                if (resultLookup.nameKeySet.has(p.nameKey)) {
+                    matched = true;
+                }
+            }
+
+            if (!matched) {
+                discharged.push(p);
+            }
+        }
+
+        bcaDischargedList = discharged;
+        showBcaResults(bcaPatients.length, resultPatients.length, discharged);
+
+    } catch (err) {
+        errorBanner.textContent = '❌ ' + err.message;
+        errorBanner.classList.add('show');
+    } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+// ===== Show BCA results =====
+function showBcaResults(bcaCount, resultCount, discharged) {
+    document.getElementById('bcaSummary').textContent =
+        `Tìm thấy ${discharged.length} BN đã ra viện (BCA: ${bcaCount} — Kết quả: ${resultCount})`;
+
+    animateCounter('statBca', bcaCount);
+    animateCounter('statResult', resultCount);
+    animateCounter('statBcaDischarged', discharged.length);
+
+    if (discharged.length > 0) {
+        document.getElementById('bcaTableCard').style.display = 'block';
+        document.getElementById('noBcaDischargeMsg').style.display = 'none';
+        document.getElementById('bcaDischargeCount').textContent = discharged.length + ' người';
+
+        const tbody = document.getElementById('bcaTableBody');
+        tbody.innerHTML = discharged.map((p, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${p.hoTen}</strong></td>
+                <td>${p.ngaySinh}</td>
+                <td>${p.docId}</td>
+                <td>${p.phongKhoa}</td>
+                <td>${p.ngayDen}</td>
+            </tr>
+        `).join('');
+
+        const dlBtn = document.getElementById('btnDownloadBca');
+        dlBtn.style.display = 'inline-flex';
+        dlBtn.onclick = downloadBcaList;
+    } else {
+        document.getElementById('bcaTableCard').style.display = 'none';
+        document.getElementById('noBcaDischargeMsg').style.display = 'block';
+        document.getElementById('btnDownloadBca').style.display = 'none';
+    }
+
+    document.getElementById('bcaResults').classList.add('show');
+    document.getElementById('bcaResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===== Download BCA discharge list =====
+function downloadBcaList() {
+    if (bcaDischargedList.length === 0) return;
+
+    const header = ['STT', 'Họ và tên', 'Ngày sinh', 'Số giấy tờ', 'Phòng/Khoa', 'Ngày đến'];
+    const data = [header];
+    bcaDischargedList.forEach((p, idx) => {
+        data.push([idx + 1, p.hoTen, p.ngaySinh, p.docId, p.phongKhoa, p.ngayDen]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [
+        { wch: 5 },   // STT
+        { wch: 30 },  // Họ và tên
+        { wch: 15 },  // Ngày sinh
+        { wch: 18 },  // Số giấy tờ
+        { wch: 25 },  // Phòng/Khoa
+        { wch: 15 },  // Ngày đến
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'BCA_Ra_Vien');
+
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    XLSX.writeFile(wb, `BCA_Ra_Vien_${dd}${mm}.xlsx`);
+}
+
+// ===== Reset BCA form =====
+function resetBca() {
+    document.getElementById('bcaResults').classList.remove('show');
+    bcaZone.classList.remove('has-file');
+    bcaFileName.textContent = '';
+    resultZone.classList.remove('has-file');
+    resultFileName.textContent = '';
+    bcaFile.value = '';
+    resultFile.value = '';
+    document.getElementById('btnCompareBca').disabled = true;
+    document.getElementById('btnDownloadBca').style.display = 'none';
+    document.getElementById('errorBannerBca').classList.remove('show');
+    bcaDischargedList = [];
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
