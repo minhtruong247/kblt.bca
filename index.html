@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="data/template_b64.js"></script>
     <style>
         :root {
             --bg-primary: #0a0e1a;
@@ -437,7 +438,208 @@
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .header h1 { font-size: 28px; }
             .card { padding: 20px; }
+            .discharge-upload-grid { grid-template-columns: 1fr; }
         }
+
+        /* ===== Tab Navigation ===== */
+        .tab-bar {
+            display: flex; gap: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px; padding: 4px;
+            margin-bottom: 32px;
+            backdrop-filter: blur(12px);
+        }
+
+        .tab-item {
+            flex: 1; padding: 12px 20px;
+            background: transparent; border: none;
+            border-radius: 10px; cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px; font-weight: 600;
+            color: var(--text-muted);
+            display: flex; align-items: center;
+            justify-content: center; gap: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-item:hover {
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-item.active {
+            color: var(--text-primary);
+            background: rgba(59, 130, 246, 0.12);
+            box-shadow: 0 2px 12px rgba(59, 130, 246, 0.15);
+        }
+
+        .tab-item .tab-icon { font-size: 16px; }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== Discharge Checker ===== */
+        .discharge-upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px; margin-bottom: 24px;
+        }
+
+        .discharge-upload-grid .upload-zone {
+            padding: 28px 16px;
+        }
+
+        .discharge-upload-grid .zone-icon { font-size: 32px; }
+
+        .discharge-upload-grid .zone-label { font-size: 14px; }
+
+        .discharge-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin-bottom: 24px;
+        }
+
+        .discharge-table-wrap {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-glass);
+            margin-bottom: 24px;
+        }
+
+        .discharge-table {
+            width: 100%; border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .discharge-table thead {
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .discharge-table th {
+            padding: 12px 14px;
+            text-align: left; font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-glass);
+            white-space: nowrap;
+        }
+
+        .discharge-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+        }
+
+        .discharge-table tbody tr {
+            transition: background 0.2s;
+        }
+
+        .discharge-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .discharge-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .discharge-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 10px;
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+            border-radius: 100px;
+            font-size: 11px; font-weight: 600;
+            color: var(--accent-rose);
+        }
+
+        .btn-compare {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 16px 48px;
+            background: linear-gradient(135deg, #f59e0b, #f43f5e);
+            color: white; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer; transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+
+        .btn-compare::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0; transition: opacity 0.3s;
+        }
+
+        .btn-compare:hover::before { opacity: 1; }
+
+        .btn-compare:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-compare:active { transform: translateY(0); }
+
+        .btn-compare:disabled {
+            opacity: 0.5; cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-compare .spinner {
+            display: none; width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .btn-compare.loading .spinner { display: block; }
+        .btn-compare.loading .btn-text { display: none; }
+
+        .discharge-results { display: none; animation: slideUp 0.5s ease; }
+        .discharge-results.show { display: block; }
+
+        .discharge-banner {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(244, 63, 94, 0.1));
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: var(--radius);
+            padding: 28px 32px; text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .discharge-banner .check-icon {
+            width: 56px; height: 56px;
+            background: var(--gradient-warm);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px; font-size: 28px;
+            animation: scaleIn 0.5s ease;
+        }
+
+        .discharge-banner h3 {
+            font-size: 20px; font-weight: 700;
+            color: var(--accent-amber); margin-bottom: 6px;
+        }
+
+        .discharge-banner p { font-size: 14px; color: var(--text-secondary); }
+
+        .no-discharge {
+            text-align: center; padding: 40px 20px;
+            color: var(--text-muted); font-size: 14px;
+        }
+
+        .no-discharge .nd-icon { font-size: 48px; margin-bottom: 12px; display: block; }
     </style>
 </head>
 <body>
@@ -456,6 +658,17 @@
             <h1>KBLT Converter</h1>
             <p>Chuyển đổi tự động file danh sách lưu trú gốc sang đúng định dạng file mẫu KBLT</p>
         </div>
+
+        <div class="tab-bar">
+            <button type="button" class="tab-item active" onclick="switchTab('converter')">
+                <span class="tab-icon">⚡</span> Chuyển đổi KBLT
+            </button>
+            <button type="button" class="tab-item" onclick="switchTab('discharge')">
+                <span class="tab-icon">🔍</span> Kiểm tra ra viện
+            </button>
+        </div>
+
+        <div class="tab-content active" id="tab-converter">
 
         <form id="convertForm">
             <div class="card">
@@ -548,6 +761,107 @@
                 </button>
             </div>
         </div>
+        </div><!-- end tab-converter -->
+
+        <div class="tab-content" id="tab-discharge">
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">🔍</span>
+                    So sánh file gốc
+                </div>
+
+                <div class="discharge-upload-grid">
+                    <div class="upload-zone" id="yesterdayZone" onclick="document.getElementById('yesterdayFile').click()">
+                        <div class="zone-content">
+                            <span class="zone-icon">📅</span>
+                            <div class="zone-label">File gốc HÔM QUA</div>
+                            <div class="zone-hint">Kéo thả hoặc click (.xlsx)</div>
+                            <div class="file-name" id="yesterdayFileName"></div>
+                        </div>
+                        <input type="file" id="yesterdayFile" accept=".xlsx,.xls">
+                    </div>
+
+                    <div class="upload-zone" id="todayZone" onclick="document.getElementById('todayFile').click()">
+                        <div class="zone-content">
+                            <span class="zone-icon">📄</span>
+                            <div class="zone-label">File gốc HÔM NAY</div>
+                            <div class="zone-hint">Kéo thả hoặc click (.xlsx)</div>
+                            <div class="file-name" id="todayFileName"></div>
+                        </div>
+                        <input type="file" id="todayFile" accept=".xlsx,.xls">
+                    </div>
+                </div>
+            </div>
+
+            <div class="submit-section">
+                <button type="button" class="btn-compare" id="btnCompare" disabled onclick="runComparison()">
+                    <div class="spinner"></div>
+                    <span class="btn-text">🔍 So sánh ngay</span>
+                </button>
+                <div class="error-banner" id="errorBannerDischarge"></div>
+            </div>
+
+            <div class="discharge-results" id="dischargeResults">
+                <div class="discharge-banner">
+                    <div class="check-icon">🏥</div>
+                    <h3>Kết quả so sánh</h3>
+                    <p id="dischargeSummary"></p>
+                </div>
+
+                <div class="discharge-stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statYesterday">0</div>
+                        <div class="stat-label">Bệnh nhân hôm qua</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statToday">0</div>
+                        <div class="stat-label">Bệnh nhân hôm nay</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDischarged">0</div>
+                        <div class="stat-label">Đã ra viện</div>
+                    </div>
+                </div>
+
+                <div class="card" id="dischargeTableCard" style="display: none;">
+                    <div class="card-title">
+                        <span class="icon">📋</span>
+                        Danh sách bệnh nhân đã ra viện
+                        <span class="discharge-badge" id="dischargeCount"></span>
+                    </div>
+                    <div class="discharge-table-wrap">
+                        <table class="discharge-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ và tên</th>
+                                    <th>Ngày sinh</th>
+                                    <th>Số giấy tờ</th>
+                                    <th>Phòng/Khoa</th>
+                                    <th>Ngày đến</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dischargeTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="noDischargeMsg" class="no-discharge" style="display: none;">
+                    <span class="nd-icon">✅</span>
+                    <strong>Không có bệnh nhân nào ra viện</strong>
+                    <p style="margin-top: 6px;">Tất cả bệnh nhân hôm qua vẫn có trong danh sách hôm nay.</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 8px;">
+                    <button type="button" class="btn-download" id="btnDownloadDischarge" style="display: none;">
+                        📥 Tải danh sách ra viện (.xlsx)
+                    </button>
+                    <button type="button" class="btn-reset" onclick="resetDischarge()">
+                        🔄 Làm mới
+                    </button>
+                </div>
+            </div>
+        </div><!-- end tab-discharge -->
     </div>
 
 <script>
@@ -1049,14 +1363,33 @@ function processFiles(srcArrayBuffer, extraDays) {
 }
 
 // ===== Load template on page load =====
+function base64ToArrayBuffer(base64) {
+    const binaryStr = atob(base64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
 async function loadTemplate() {
     const badge = document.getElementById('statusBadge');
     const statusText = document.getElementById('statusText');
 
     try {
-        const response = await fetch('data/tblt_vn_import.xlsx');
-        if (!response.ok) throw new Error('Không tải được file mẫu');
-        templateData = await response.arrayBuffer();
+        // Try fetch first (works on http/https), fallback to embedded base64 (works on file://)
+        try {
+            const response = await fetch('data/tblt_vn_import.xlsx');
+            if (!response.ok) throw new Error('fetch failed');
+            templateData = await response.arrayBuffer();
+        } catch (fetchErr) {
+            // Fallback: use embedded base64 data
+            if (typeof TEMPLATE_B64 !== 'undefined' && TEMPLATE_B64) {
+                templateData = base64ToArrayBuffer(TEMPLATE_B64);
+            } else {
+                throw new Error('Không tải được file mẫu');
+            }
+        }
 
         // Verify template is valid
         const testWb = XLSX.read(templateData, { type: 'array' });
@@ -1249,6 +1582,326 @@ function resetForm() {
     document.getElementById('btnDownload').style.display = 'none';
     document.getElementById('errorBanner').classList.remove('show');
     outputWorkbook = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+function switchTab(tabId) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-item').forEach(btn => btn.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+}
+
+// ============================================================
+// DISCHARGE CHECKER — Kiểm tra ra viện
+// ============================================================
+
+let dischargedList = []; // Store for download
+
+// Upload zone setup for yesterday & today
+const yesterdayZone = document.getElementById('yesterdayZone');
+const yesterdayFile = document.getElementById('yesterdayFile');
+const yesterdayFileName = document.getElementById('yesterdayFileName');
+const todayZone = document.getElementById('todayZone');
+const todayFile = document.getElementById('todayFile');
+const todayFileName = document.getElementById('todayFileName');
+
+function setupDischargeZone(zone, fileInput, fileNameEl) {
+    ['dragenter', 'dragover'].forEach(evt => {
+        zone.addEventListener(evt, e => {
+            e.preventDefault();
+            zone.classList.add('dragover');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+        zone.addEventListener(evt, e => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+        });
+    });
+
+    zone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            zone.classList.add('has-file');
+            fileNameEl.textContent = '✓ ' + files[0].name;
+            checkDischargeReady();
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            zone.classList.add('has-file');
+            fileNameEl.textContent = '✓ ' + fileInput.files[0].name;
+            checkDischargeReady();
+        }
+    });
+}
+
+setupDischargeZone(yesterdayZone, yesterdayFile, yesterdayFileName);
+setupDischargeZone(todayZone, todayFile, todayFileName);
+
+function checkDischargeReady() {
+    const ready = yesterdayFile.files.length > 0 && todayFile.files.length > 0;
+    document.getElementById('btnCompare').disabled = !ready;
+}
+
+// ===== Normalize name for comparison =====
+function normalizeName(name) {
+    if (!name) return '';
+    return nfc(name).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// ===== Extract patients from a source file =====
+function extractPatients(arrayBuffer) {
+    const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+
+    const [headerRowIdx, colMap] = findSourceColumns(rows);
+    if (headerRowIdx === null || !('ho_ten' in colMap)) {
+        throw new Error('Không tìm thấy dòng tiêu đề (phải có cột "Họ và tên").');
+    }
+
+    const uniqueMap = new Map(); // key = dedup key, value = patient object
+    const sourceStart = headerRowIdx + 1;
+
+    function safeGet(row, key) {
+        if (key in colMap && row && colMap[key] < row.length) {
+            return row[colMap[key]];
+        }
+        return null;
+    }
+
+    for (let i = sourceStart; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+
+        const hoTen = safeGet(row, 'ho_ten');
+        if (!hoTen || String(hoTen).trim().startsWith('<')) continue;
+
+        // Get document IDs — try both CCCD and giấy tờ khác columns
+        let docId = '';
+        if ('so_giay_to' in colMap) {
+            docId = String(safeGet(row, 'so_giay_to') || '').trim();
+        }
+        if (!docId) {
+            const soCccd = safeGet(row, 'so_cccd');
+            if (soCccd) docId = String(soCccd).trim();
+        }
+        if (!docId) {
+            const soHc = safeGet(row, 'so_ho_chieu');
+            if (soHc) docId = String(soHc).trim();
+        }
+        if (!docId) {
+            const soGtk = safeGet(row, 'so_giay_to_khac');
+            if (soGtk) docId = String(soGtk).trim();
+        }
+
+        const hoTenStr = String(hoTen).trim();
+        const ngaySinh = String(safeGet(row, 'ngay_sinh') || '').trim();
+        const phongKhoa = String(safeGet(row, 'phong_khoa') || '').trim();
+        const ngayDen = String(safeGet(row, 'ngay_den') || '').trim();
+
+        // Build matching keys
+        const nameKey = normalizeName(hoTenStr) + '|' + ngaySinh;
+        // Dedup key: prefer docId+nameKey, fallback to nameKey only
+        const dedupKey = docId ? (docId + '||' + nameKey) : nameKey;
+
+        // Keep first occurrence, skip duplicates
+        if (!uniqueMap.has(dedupKey)) {
+            uniqueMap.set(dedupKey, {
+                hoTen: hoTenStr,
+                ngaySinh: ngaySinh,
+                docId: docId,
+                phongKhoa: phongKhoa,
+                ngayDen: ngayDen,
+                nameKey: nameKey
+            });
+        }
+    }
+
+    return Array.from(uniqueMap.values());
+}
+
+// ===== Build lookup sets for today's patients =====
+function buildTodayLookup(todayPatients) {
+    // Set 1: docId keys (for patients with docId)
+    const docIdSet = new Set();
+    // Set 2: nameKey (hoTen normalized + ngaySinh)
+    const nameKeySet = new Set();
+    // Set 3: combined key docId + nameKey (strictest match)
+    const combinedSet = new Set();
+
+    for (const p of todayPatients) {
+        if (p.docId) {
+            docIdSet.add(p.docId);
+            combinedSet.add(p.docId + '||' + p.nameKey);
+        }
+        nameKeySet.add(p.nameKey);
+    }
+
+    return { docIdSet, nameKeySet, combinedSet };
+}
+
+// ===== Run comparison =====
+async function runComparison() {
+    const btn = document.getElementById('btnCompare');
+    const errorBanner = document.getElementById('errorBannerDischarge');
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorBanner.classList.remove('show');
+
+    await new Promise(r => setTimeout(r, 50));
+
+    try {
+        const yFile = yesterdayFile.files[0];
+        const tFile = todayFile.files[0];
+        if (!yFile || !tFile) throw new Error('Vui lòng chọn cả 2 file.');
+
+        const yBuffer = new Uint8Array(await yFile.arrayBuffer());
+        const tBuffer = new Uint8Array(await tFile.arrayBuffer());
+
+        const yesterdayPatients = extractPatients(yBuffer);
+        const todayPatients = extractPatients(tBuffer);
+        const todayLookup = buildTodayLookup(todayPatients);
+
+        // Find discharged: in yesterday but NOT matched in today
+        // Match logic:
+        //   - Has docId → match by (docId + hoTen + ngaySinh) OR by (hoTen + ngaySinh) alone
+        //   - No docId  → match by (hoTen + ngaySinh) only
+        const discharged = [];
+        for (const p of yesterdayPatients) {
+            let matched = false;
+
+            if (p.docId) {
+                // Strict: combined key match (docId + name + DOB)
+                if (todayLookup.combinedSet.has(p.docId + '||' + p.nameKey)) {
+                    matched = true;
+                }
+                // Fallback: same docId exists in today
+                else if (todayLookup.docIdSet.has(p.docId)) {
+                    matched = true;
+                }
+                // Fallback: same name + DOB exists in today
+                else if (todayLookup.nameKeySet.has(p.nameKey)) {
+                    matched = true;
+                }
+            } else {
+                // No docId: match by name + DOB only
+                if (todayLookup.nameKeySet.has(p.nameKey)) {
+                    matched = true;
+                }
+            }
+
+            if (!matched) {
+                discharged.push(p);
+            }
+        }
+
+        dischargedList = discharged;
+        showDischargeResults(yesterdayPatients.length, todayPatients.length, discharged);
+
+    } catch (err) {
+        errorBanner.textContent = '❌ ' + err.message;
+        errorBanner.classList.add('show');
+    } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+// ===== Show discharge results =====
+function showDischargeResults(yCount, tCount, discharged) {
+    document.getElementById('dischargeSummary').textContent =
+        `Tìm thấy ${discharged.length} bệnh nhân đã ra viện (từ ${yCount} → ${tCount} bệnh nhân)`;
+
+    animateCounter('statYesterday', yCount);
+    animateCounter('statToday', tCount);
+    animateCounter('statDischarged', discharged.length);
+
+    if (discharged.length > 0) {
+        document.getElementById('dischargeTableCard').style.display = 'block';
+        document.getElementById('noDischargeMsg').style.display = 'none';
+        document.getElementById('dischargeCount').textContent = discharged.length + ' người';
+
+        const tbody = document.getElementById('dischargeTableBody');
+        tbody.innerHTML = discharged.map((p, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${p.hoTen}</strong></td>
+                <td>${p.ngaySinh}</td>
+                <td>${p.docId}</td>
+                <td>${p.phongKhoa}</td>
+                <td>${p.ngayDen}</td>
+            </tr>
+        `).join('');
+
+        const dlBtn = document.getElementById('btnDownloadDischarge');
+        dlBtn.style.display = 'inline-flex';
+        dlBtn.onclick = downloadDischargeList;
+    } else {
+        document.getElementById('dischargeTableCard').style.display = 'none';
+        document.getElementById('noDischargeMsg').style.display = 'block';
+        document.getElementById('btnDownloadDischarge').style.display = 'none';
+    }
+
+    document.getElementById('dischargeResults').classList.add('show');
+    document.getElementById('dischargeResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===== Download discharge list =====
+function downloadDischargeList() {
+    if (dischargedList.length === 0) return;
+
+    const header = ['STT', 'Họ và tên', 'Ngày sinh', 'Số giấy tờ', 'Phòng/Khoa', 'Ngày đến'];
+    const data = [header];
+    dischargedList.forEach((p, idx) => {
+        data.push([idx + 1, p.hoTen, p.ngaySinh, p.docId, p.phongKhoa, p.ngayDen]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    // Set column widths
+    ws['!cols'] = [
+        { wch: 5 },   // STT
+        { wch: 30 },  // Họ và tên
+        { wch: 15 },  // Ngày sinh
+        { wch: 18 },  // Số giấy tờ
+        { wch: 25 },  // Phòng/Khoa
+        { wch: 15 },  // Ngày đến
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Da_Ra_Vien');
+
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    XLSX.writeFile(wb, `DS_Ra_Vien_${dd}${mm}.xlsx`);
+}
+
+// ===== Reset discharge form =====
+function resetDischarge() {
+    document.getElementById('dischargeResults').classList.remove('show');
+    yesterdayZone.classList.remove('has-file');
+    yesterdayFileName.textContent = '';
+    todayZone.classList.remove('has-file');
+    todayFileName.textContent = '';
+    yesterdayFile.value = '';
+    todayFile.value = '';
+    document.getElementById('btnCompare').disabled = true;
+    document.getElementById('btnDownloadDischarge').style.display = 'none';
+    document.getElementById('errorBannerDischarge').classList.remove('show');
+    dischargedList = [];
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
