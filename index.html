@@ -2036,45 +2036,86 @@ function checkBcaReady() {
     document.getElementById('btnCompareBca').disabled = !ready;
 }
 
-// ===== Extract patients from KBLT-format file (fixed columns) =====
-// KBLT template: Col 1=Họ tên, Col 2=Ngày sinh, Col 7=Số giấy tờ, Col 13=Ngày đến, Col 15=Phòng/Khoa
-function extractKbltPatients(arrayBuffer) {
+// ===== Strip Vietnamese accents helper =====
+function stripAccents(str) {
+    if (!str) return '';
+    return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
+}
+
+// ===== Smart Extract patients from BCA file or KBLT output file =====
+function extractPatientList(arrayBuffer) {
     const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
-    const sheetName = wb.SheetNames[0];
-    const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+    let targetSheet = wb.Sheets[wb.SheetNames[0]];
+    for (const name of wb.SheetNames) {
+        if (name.includes('DS_KHACH') || name.includes('Sheet1')) {
+            targetSheet = wb.Sheets[name];
+            break;
+        }
+    }
+    const rows = XLSX.utils.sheet_to_json(targetSheet, { header: 1, defval: null, raw: true });
 
-    const uniqueMap = new Map();
+    let headerRowIdx = -1;
+    let colMap = { name: -1, dob: -1, docId: -1, room: -1, admitDate: -1 };
 
-    // Find header row — look for "Họ và tên" or start from row 2 (index 2) for KBLT format
-    let startRow = 2; // Default KBLT template: data starts at row 3 (0-indexed: 2)
-    for (let r = 0; r < Math.min(10, rows.length); r++) {
+    for (let r = 0; r < Math.min(30, rows.length); r++) {
         const row = rows[r];
-        if (!row) continue;
+        if (!row || !Array.isArray(row)) continue;
+
+        let nameCol = -1, dobCol = -1, docCol = -1, roomCol = -1, admitCol = -1;
+
         for (let c = 0; c < row.length; c++) {
-            const val = nfc(row[c]).toLowerCase();
-            if (val.includes('họ và tên') || val.includes('ho va ten')) {
-                startRow = r + 1;
-                break;
+            const raw = nfc(row[c]).toLowerCase().trim();
+            const unacc = stripAccents(raw);
+            if (!raw) continue;
+
+            if (nameCol === -1 && (raw === 'họ tên' || raw === 'họ và tên' || raw.includes('họ tên') || raw.includes('họ và tên') || unacc.includes('ho ten') || unacc.includes('ho va ten'))) {
+                nameCol = c;
             }
+            if (dobCol === -1 && (raw === 'ngày sinh' || raw.includes('ngày sinh') || raw === 'năm sinh' || unacc.includes('ngay sinh') || unacc.includes('nam sinh'))) {
+                dobCol = c;
+            }
+            if (docCol === -1 && (raw.includes('số giấy tờ') || raw.includes('giấy tờ') || raw.includes('cccd') || raw.includes('cmnd') || raw.includes('định danh') || unacc.includes('so giay to') || unacc.includes('dinh danh'))) {
+                docCol = c;
+            }
+            if (roomCol === -1 && (raw.includes('số phòng') || raw.includes('phòng/khoa') || raw.includes('khoa') || raw === 'phòng' || unacc.includes('so phong') || unacc.includes('phong/khoa') || unacc.includes('phong'))) {
+                roomCol = c;
+            }
+            if (admitCol === -1 && (raw.includes('ngày đến') || raw.includes('ngày vào') || unacc.includes('ngay den') || unacc.includes('ngay vao'))) {
+                admitCol = c;
+            }
+        }
+
+        if (nameCol !== -1 && (dobCol !== -1 || docCol !== -1)) {
+            headerRowIdx = r;
+            colMap = { name: nameCol, dob: dobCol, docId: docCol, room: roomCol, admitDate: admitCol };
+            break;
         }
     }
 
-    for (let i = startRow; i < rows.length; i++) {
+    if (headerRowIdx === -1) {
+        headerRowIdx = 1;
+        colMap = { name: 1, dob: 2, docId: 7, room: 15, admitDate: 13 };
+    }
+
+    const uniqueMap = new Map();
+
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
         const row = rows[i];
-        if (!row) continue;
+        if (!row || !Array.isArray(row)) continue;
 
-        const hoTen = row[1]; // Col B = Họ và tên
-        if (!hoTen || String(hoTen).trim() === '' || String(hoTen).trim().startsWith('<')) continue;
+        const rawName = colMap.name !== -1 ? row[colMap.name] : null;
+        if (!rawName) continue;
+        const hoTenStr = String(rawName).trim();
+        const unaccName = stripAccents(hoTenStr).toLowerCase();
+        if (!hoTenStr || hoTenStr.startsWith('<') || unaccName === 'ho ten' || unaccName === 'ho va ten') continue;
 
-        const hoTenStr = String(hoTen).trim();
-        const ngaySinh = String(row[2] || '').trim();  // Col C = Ngày sinh
-        const docId = String(row[7] || '').trim();      // Col H = Số giấy tờ
-        const ngayDen = String(row[13] || '').trim();   // Col N = Ngày đến
-        const phongKhoa = String(row[15] || '').trim(); // Col P = Phòng/Khoa
+        const ngaySinh = colMap.dob !== -1 ? String(row[colMap.dob] || '').trim() : '';
+        const docId = colMap.docId !== -1 ? String(row[colMap.docId] || '').trim() : '';
+        const phongKhoa = colMap.room !== -1 ? String(row[colMap.room] || '').trim() : '';
+        const ngayDen = colMap.admitDate !== -1 ? String(row[colMap.admitDate] || '').trim() : '';
 
         const nameKey = normalizeName(hoTenStr) + '|' + ngaySinh;
-        const dedupKey = docId ? (docId + '||' + nameKey) : nameKey;
+        const dedupKey = docId ? (docId.toUpperCase() + '||' + nameKey) : nameKey;
 
         if (!uniqueMap.has(dedupKey)) {
             uniqueMap.set(dedupKey, {
@@ -2110,25 +2151,49 @@ async function runBcaComparison() {
         const bBuffer = new Uint8Array(await bFile.arrayBuffer());
         const rBuffer = new Uint8Array(await rFile.arrayBuffer());
 
-        const bcaPatients = extractKbltPatients(bBuffer);
-        const resultPatients = extractKbltPatients(rBuffer);
-        const resultLookup = buildTodayLookup(resultPatients); // Reuse existing function
+        const bcaPatients = extractPatientList(bBuffer);
+        const resultPatients = extractPatientList(rBuffer);
+
+        if (bcaPatients.length === 0) {
+            throw new Error('Không đọc được dữ liệu bệnh nhân từ file BCA. Vui lòng kiểm tra file.');
+        }
+        if (resultPatients.length === 0) {
+            throw new Error('Không đọc được dữ liệu bệnh nhân từ file kết quả. Vui lòng kiểm tra file.');
+        }
+
+        // Build lookup sets for result patients
+        const docIdSet = new Set();
+        const nameKeySet = new Set();
+        const combinedSet = new Set();
+        const cleanNameKeySet = new Set();
+
+        resultPatients.forEach(p => {
+            if (p.docId) {
+                const d = p.docId.trim().toUpperCase();
+                docIdSet.add(d);
+                combinedSet.add(d + '||' + p.nameKey);
+            }
+            nameKeySet.add(p.nameKey);
+            cleanNameKeySet.add(stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh);
+        });
 
         // Find discharged: in BCA but NOT in result
         const discharged = [];
         for (const p of bcaPatients) {
             let matched = false;
+            const cleanKey = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh;
+            const docUpper = p.docId ? p.docId.trim().toUpperCase() : '';
 
-            if (p.docId) {
-                if (resultLookup.combinedSet.has(p.docId + '||' + p.nameKey)) {
+            if (docUpper) {
+                if (combinedSet.has(docUpper + '||' + p.nameKey)) {
                     matched = true;
-                } else if (resultLookup.docIdSet.has(p.docId)) {
+                } else if (docIdSet.has(docUpper)) {
                     matched = true;
-                } else if (resultLookup.nameKeySet.has(p.nameKey)) {
+                } else if (nameKeySet.has(p.nameKey) || cleanNameKeySet.has(cleanKey)) {
                     matched = true;
                 }
             } else {
-                if (resultLookup.nameKeySet.has(p.nameKey)) {
+                if (nameKeySet.has(p.nameKey) || cleanNameKeySet.has(cleanKey)) {
                     matched = true;
                 }
             }
@@ -2152,8 +2217,13 @@ async function runBcaComparison() {
 
 // ===== Show BCA results =====
 function showBcaResults(bcaCount, resultCount, discharged) {
-    document.getElementById('bcaSummary').textContent =
-        `Tìm thấy ${discharged.length} BN đã ra viện (BCA: ${bcaCount} — Kết quả: ${resultCount})`;
+    if (discharged.length > 0) {
+        document.getElementById('bcaSummary').textContent =
+            `Tìm thấy ${discharged.length} BN có trên BCA nhưng KHÔNG CÒN trong file kết quả (đã ra viện)`;
+    } else {
+        document.getElementById('bcaSummary').textContent =
+            `Tất cả ${bcaCount} BN trên BCA đều còn trong file kết quả (không có BN nào ra viện)`;
+    }
 
     animateCounter('statBca', bcaCount);
     animateCounter('statResult', resultCount);
