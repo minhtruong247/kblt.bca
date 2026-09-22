@@ -921,6 +921,10 @@
                         <div class="stat-label">BN file kết quả</div>
                     </div>
                     <div class="stat-card">
+                        <div class="stat-value" id="statBcaStill">0</div>
+                        <div class="stat-label">Còn nằm viện</div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-value" id="statBcaDischarged">0</div>
                         <div class="stat-label">Đã ra viện</div>
                     </div>
@@ -949,6 +953,29 @@
                     </div>
                 </div>
 
+                <div class="card" id="bcaStillCard" style="display: none;">
+                    <div class="card-title">
+                        <span class="icon">🏥</span>
+                        Danh sách BN còn nằm viện (cần gia hạn trên BCA)
+                        <span class="discharge-badge" style="background: linear-gradient(135deg, #10b981, #059669);" id="bcaStillCount"></span>
+                    </div>
+                    <div class="discharge-table-wrap">
+                        <table class="discharge-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ và tên</th>
+                                    <th>Ngày sinh</th>
+                                    <th>Số giấy tờ</th>
+                                    <th>Phòng/Khoa</th>
+                                    <th>Ngày đến</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bcaStillBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div id="noBcaDischargeMsg" class="no-discharge" style="display: none;">
                     <span class="nd-icon">✅</span>
                     <strong>Không có bệnh nhân nào ra viện</strong>
@@ -956,8 +983,11 @@
                 </div>
 
                 <div style="text-align: center; margin-top: 8px;">
+                    <button type="button" class="btn-download" id="btnDownloadBcaStill" style="display: none;">
+                        📥 Tải DS còn nằm viện (.xlsx)
+                    </button>
                     <button type="button" class="btn-download" id="btnDownloadBca" style="display: none;">
-                        📥 Tải danh sách ra viện (.xlsx)
+                        📥 Tải DS đã ra viện (.xlsx)
                     </button>
                     <button type="button" class="btn-reset" onclick="resetBca()">
                         🔄 Làm mới
@@ -2013,6 +2043,7 @@ function resetDischarge() {
 // ============================================================
 
 let bcaDischargedList = []; // Store for download
+let bcaStillList = []; // Store still-hospitalized for download
 
 // Upload zone setup for BCA & Result
 const bcaZone = document.getElementById('bcaZone');
@@ -2177,8 +2208,9 @@ async function runBcaComparison() {
             cleanNameKeySet.add(stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh);
         });
 
-        // Find discharged: in BCA but NOT in result
+        // Find discharged (not in result) and still hospitalized (in both)
         const discharged = [];
+        const stillHospitalized = [];
         for (const p of bcaPatients) {
             let matched = false;
             const cleanKey = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh;
@@ -2198,13 +2230,16 @@ async function runBcaComparison() {
                 }
             }
 
-            if (!matched) {
+            if (matched) {
+                stillHospitalized.push(p);
+            } else {
                 discharged.push(p);
             }
         }
 
         bcaDischargedList = discharged;
-        showBcaResults(bcaPatients.length, resultPatients.length, discharged);
+        bcaStillList = stillHospitalized;
+        showBcaResults(bcaPatients.length, resultPatients.length, discharged, stillHospitalized);
 
     } catch (err) {
         errorBanner.textContent = '❌ ' + err.message;
@@ -2216,19 +2251,43 @@ async function runBcaComparison() {
 }
 
 // ===== Show BCA results =====
-function showBcaResults(bcaCount, resultCount, discharged) {
-    if (discharged.length > 0) {
-        document.getElementById('bcaSummary').textContent =
-            `Tìm thấy ${discharged.length} BN có trên BCA nhưng KHÔNG CÒN trong file kết quả (đã ra viện)`;
-    } else {
-        document.getElementById('bcaSummary').textContent =
-            `Tất cả ${bcaCount} BN trên BCA đều còn trong file kết quả (không có BN nào ra viện)`;
-    }
+function showBcaResults(bcaCount, resultCount, discharged, stillHospitalized) {
+    const summaryParts = [];
+    if (stillHospitalized.length > 0) summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (cần gia hạn)`);
+    if (discharged.length > 0) summaryParts.push(`${discharged.length} BN đã ra viện`);
+    document.getElementById('bcaSummary').textContent = summaryParts.join(' — ') || `Tất cả ${bcaCount} BN trên BCA đều còn trong file kết quả`;
 
     animateCounter('statBca', bcaCount);
     animateCounter('statResult', resultCount);
+    animateCounter('statBcaStill', stillHospitalized.length);
     animateCounter('statBcaDischarged', discharged.length);
 
+    // --- Still hospitalized table ---
+    if (stillHospitalized.length > 0) {
+        document.getElementById('bcaStillCard').style.display = 'block';
+        document.getElementById('bcaStillCount').textContent = stillHospitalized.length + ' người';
+
+        const stillBody = document.getElementById('bcaStillBody');
+        stillBody.innerHTML = stillHospitalized.map((p, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${p.hoTen}</strong></td>
+                <td>${p.ngaySinh}</td>
+                <td>${p.docId}</td>
+                <td>${p.phongKhoa}</td>
+                <td>${p.ngayDen}</td>
+            </tr>
+        `).join('');
+
+        const dlStillBtn = document.getElementById('btnDownloadBcaStill');
+        dlStillBtn.style.display = 'inline-flex';
+        dlStillBtn.onclick = downloadBcaStillList;
+    } else {
+        document.getElementById('bcaStillCard').style.display = 'none';
+        document.getElementById('btnDownloadBcaStill').style.display = 'none';
+    }
+
+    // --- Discharged table ---
     if (discharged.length > 0) {
         document.getElementById('bcaTableCard').style.display = 'block';
         document.getElementById('noBcaDischargeMsg').style.display = 'none';
@@ -2262,10 +2321,20 @@ function showBcaResults(bcaCount, resultCount, discharged) {
 // ===== Download BCA discharge list =====
 function downloadBcaList() {
     if (bcaDischargedList.length === 0) return;
+    downloadPatientExcel(bcaDischargedList, 'BCA_Ra_Vien', 'BCA_Ra_Vien');
+}
 
+// ===== Download BCA still-hospitalized list =====
+function downloadBcaStillList() {
+    if (bcaStillList.length === 0) return;
+    downloadPatientExcel(bcaStillList, 'BCA_Con_Nam', 'BCA_Con_Nam_Vien');
+}
+
+// ===== Shared download helper =====
+function downloadPatientExcel(list, sheetName, filePrefix) {
     const header = ['STT', 'Họ và tên', 'Ngày sinh', 'Số giấy tờ', 'Phòng/Khoa', 'Ngày đến'];
     const data = [header];
-    bcaDischargedList.forEach((p, idx) => {
+    list.forEach((p, idx) => {
         data.push([idx + 1, p.hoTen, p.ngaySinh, p.docId, p.phongKhoa, p.ngayDen]);
     });
 
@@ -2280,12 +2349,12 @@ function downloadBcaList() {
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'BCA_Ra_Vien');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
-    XLSX.writeFile(wb, `BCA_Ra_Vien_${dd}${mm}.xlsx`);
+    XLSX.writeFile(wb, `${filePrefix}_${dd}${mm}.xlsx`);
 }
 
 // ===== Reset BCA form =====
@@ -2299,8 +2368,11 @@ function resetBca() {
     resultFile.value = '';
     document.getElementById('btnCompareBca').disabled = true;
     document.getElementById('btnDownloadBca').style.display = 'none';
+    document.getElementById('btnDownloadBcaStill').style.display = 'none';
+    document.getElementById('bcaStillCard').style.display = 'none';
     document.getElementById('errorBannerBca').classList.remove('show');
     bcaDischargedList = [];
+    bcaStillList = [];
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
