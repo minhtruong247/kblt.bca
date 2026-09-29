@@ -883,8 +883,8 @@
                     <div class="upload-zone" id="resultZone" onclick="document.getElementById('resultFile').click()">
                         <div class="zone-content">
                             <span class="zone-icon">📄</span>
-                            <div class="zone-label">File KBLT phụ (tùy chọn)</div>
-                            <div class="zone-hint">File KBLT_DDMM.xlsx nếu ô 1 bạn chọn file HIS gốc</div>
+                            <div class="zone-label">File KBLT hôm trước / File kết quả (tùy chọn)</div>
+                            <div class="zone-hint">File KBLT hôm qua/trước đó (để so sánh BN đã ra viện)</div>
                             <div class="file-name" id="resultFileName"></div>
                         </div>
                         <input type="file" id="resultFile" accept=".xlsx,.xls">
@@ -2206,9 +2206,10 @@ async function runBcaComparison() {
         }
 
         // Read KBLT result (optional) — match KBLT template rows to hisPatients
+        let resultPatients = [];
         if (rFile) {
             const rBuffer = new Uint8Array(await rFile.arrayBuffer());
-            const resultPatients = extractPatientList(rBuffer);
+            resultPatients = extractPatientList(rBuffer);
             if (resultPatients.length > 0) {
                 const kbltDocMap = new Map();
                 const kbltNameMap = new Map();
@@ -2230,24 +2231,51 @@ async function runBcaComparison() {
 
         // === Compare ===
         const stillHospitalized = []; // On BCA AND on HIS => cần gia hạn
-        const discharged = [];        // On BCA but NOT on HIS => đã ra viện
+        const discharged = [];        // On BCA or KBLT cũ but NOT on HIS => đã ra viện
         const newPatients = [];        // On HIS but NOT on BCA => cần khai báo mới
+        const dischargedDedup = new Set();
 
-        // 1. Check each BCA patient against HIS
+        // 1. Kiểm tra từng BN trên BCA với HIS
         if (bcaPatients.length > 0) {
             for (const p of bcaPatients) {
                 if (isPatientInLookup(p, hisLookup)) {
                     stillHospitalized.push(p);
                 } else {
-                    discharged.push(p);
+                    p.nguon = 'BCA';
+                    const dedupKey = (p.docId ? p.docId.trim().toUpperCase() + '||' : '') + p.nameKey;
+                    if (!dischargedDedup.has(dedupKey)) {
+                        dischargedDedup.add(dedupKey);
+                        discharged.push(p);
+                    }
                 }
             }
         }
 
-        // 2. Check each HIS patient against BCA => find new patients
+        // 2. Kiểm tra từng BN trong file KBLT (File 3, ví dụ KBLT hôm trước) với HIS => BN đã ra viện
+        if (resultPatients && resultPatients.length > 0) {
+            for (const p of resultPatients) {
+                if (!isPatientInLookup(p, hisLookup)) {
+                    const dedupKey = (p.docId ? p.docId.trim().toUpperCase() + '||' : '') + p.nameKey;
+                    if (!dischargedDedup.has(dedupKey)) {
+                        dischargedDedup.add(dedupKey);
+                        p.nguon = 'KBLT cũ';
+                        discharged.push(p);
+                    }
+                }
+            }
+        }
+
+        // 3. Kiểm tra từng BN trên HIS với BCA => Tìm BN mới cần nạp BCA
         if (bcaLookup) {
             for (const p of hisPatients) {
                 if (!isPatientInLookup(p, bcaLookup)) {
+                    newPatients.push(p);
+                }
+            }
+        } else if (resultPatients && resultPatients.length > 0) {
+            const rLookup = buildLookupSets(resultPatients);
+            for (const p of hisPatients) {
+                if (!isPatientInLookup(p, rLookup)) {
                     newPatients.push(p);
                 }
             }
@@ -2313,15 +2341,22 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
         if (dlBtnStill) dlBtnStill.style.display = 'none';
     }
 
+    // Nút tải danh sách ra viện: Luôn hiển thị để người dùng thấy rõ
     const dlBtnDis = document.getElementById('btnDownloadBca');
-    if (discharged.length > 0) {
-        if (dlBtnDis) {
+    if (dlBtnDis) {
+        if (discharged.length > 0) {
             dlBtnDis.style.display = 'inline-flex';
+            dlBtnDis.disabled = false;
+            dlBtnDis.style.opacity = '1';
             dlBtnDis.textContent = `📥 Tải DS đã ra viện (${discharged.length} BN)`;
             dlBtnDis.onclick = downloadBcaList;
+        } else {
+            dlBtnDis.style.display = 'inline-flex';
+            dlBtnDis.disabled = true;
+            dlBtnDis.style.opacity = '0.5';
+            dlBtnDis.textContent = `📥 Đã ra viện (0 BN)`;
+            dlBtnDis.onclick = null;
         }
-    } else {
-        if (dlBtnDis) dlBtnDis.style.display = 'none';
     }
 
     // Thông báo khi không có BN ra viện
@@ -2490,10 +2525,14 @@ function fillTplRowFromHis(wsTpl, tplRow, srcRow, colMap, lk, stt) {
 }
 
 function downloadPatientExcel(list, sheetName, filePrefix) {
+    const hasNguon = list.some(p => p.nguon);
     const header = ['STT', 'Họ và tên', 'Ngày sinh', 'Số giấy tờ', 'Phòng/Khoa', 'Ngày đến'];
+    if (hasNguon) header.push('Nguồn dữ liệu');
     const data = [header];
     list.forEach((p, idx) => {
-        data.push([idx + 1, p.hoTen, p.ngaySinh, p.docId, p.phongKhoa, p.ngayDen]);
+        const row = [idx + 1, p.hoTen, p.ngaySinh, p.docId, p.phongKhoa, p.ngayDen];
+        if (hasNguon) row.push(p.nguon || '');
+        data.push(row);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -2505,6 +2544,7 @@ function downloadPatientExcel(list, sheetName, filePrefix) {
         { wch: 25 },  // Phòng/Khoa
         { wch: 15 },  // Ngày đến
     ];
+    if (hasNguon) ws['!cols'].push({ wch: 15 });
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
