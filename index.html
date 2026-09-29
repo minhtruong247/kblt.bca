@@ -832,37 +832,14 @@
                     </div>
                 </div>
 
-                <div class="card" id="dischargeTableCard" style="display: none;">
-                    <div class="card-title">
-                        <span class="icon">📋</span>
-                        Danh sách bệnh nhân đã ra viện
-                        <span class="discharge-badge" id="dischargeCount"></span>
-                    </div>
-                    <div class="discharge-table-wrap">
-                        <table class="discharge-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Họ và tên</th>
-                                    <th>Ngày sinh</th>
-                                    <th>Số giấy tờ</th>
-                                    <th>Phòng/Khoa</th>
-                                    <th>Ngày đến</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dischargeTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="noDischargeMsg" class="no-discharge" style="display: none;">
+                <div id="noDischargeMsg" class="no-discharge" style="display: none; margin-top: 16px;">
                     <span class="nd-icon">✅</span>
                     <strong>Không có bệnh nhân nào ra viện</strong>
                     <p style="margin-top: 6px;">Tất cả bệnh nhân hôm qua vẫn có trong danh sách hôm nay.</p>
                 </div>
 
-                <div style="text-align: center; margin-top: 8px;">
-                    <button type="button" class="btn-download" id="btnDownloadDischarge" style="display: none;">
+                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                    <button type="button" class="btn-download" id="btnDownloadDischarge" style="display: none; background: #ef4444;">
                         📥 Tải danh sách ra viện (.xlsx)
                     </button>
                     <button type="button" class="btn-reset" onclick="resetDischarge()">
@@ -953,90 +930,21 @@
                     </div>
                 </div>
 
-                <div class="card" id="bcaStillCard" style="display: none;">
-                    <div class="card-title">
-                        <span class="icon">🏥</span>
-                        Danh sách BN còn nằm viện (cần gia hạn trên BCA)
-                        <span class="discharge-badge" style="background: linear-gradient(135deg, #10b981, #059669);" id="bcaStillCount"></span>
-                    </div>
-                    <div class="discharge-table-wrap">
-                        <table class="discharge-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Họ và tên</th>
-                                    <th>Ngày sinh</th>
-                                    <th>Số giấy tờ</th>
-                                    <th>Phòng/Khoa</th>
-                                    <th>Ngày đến</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bcaStillBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card" id="bcaTableCard" style="display: none;">
-                    <div class="card-title">
-                        <span class="icon">📋</span>
-                        Danh sách BN đã ra viện (có trên BCA, không còn trên HIS)
-                        <span class="discharge-badge" id="bcaDischargeCount"></span>
-                    </div>
-                    <div class="discharge-table-wrap">
-                        <table class="discharge-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Họ và tên</th>
-                                    <th>Ngày sinh</th>
-                                    <th>Số giấy tờ</th>
-                                    <th>Phòng/Khoa</th>
-                                    <th>Ngày đến</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bcaTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card" id="bcaNewCard" style="display: none;">
-                    <div class="card-title">
-                        <span class="icon">🆕</span>
-                        BN mới trên HIS chưa có trên BCA (cần khai báo mới)
-                        <span class="discharge-badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb);" id="bcaNewCount"></span>
-                    </div>
-                    <div class="discharge-table-wrap">
-                        <table class="discharge-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Họ và tên</th>
-                                    <th>Ngày sinh</th>
-                                    <th>Số giấy tờ</th>
-                                    <th>Phòng/Khoa</th>
-                                    <th>Ngày đến</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bcaNewBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="noBcaDischargeMsg" class="no-discharge" style="display: none;">
+                <div id="noBcaDischargeMsg" class="no-discharge" style="display: none; margin-top: 16px;">
                     <span class="nd-icon">✅</span>
                     <strong>Không có bệnh nhân nào ra viện</strong>
                     <p style="margin-top: 6px;">Tất cả BN trên BCA đều còn trên HIS.</p>
                 </div>
 
-                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px;">
+                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                    <button type="button" class="btn-download" id="btnDownloadBcaNew" style="display: none; background: #2563eb;" title="File mẫu chuẩn BCA để import trực tiếp lên web lưu trú">
+                        📥 Tải DS BN mới nạp BCA (.xlsx)
+                    </button>
                     <button type="button" class="btn-download" id="btnDownloadBcaStill" style="display: none; background: #10b981;">
                         📥 Tải DS còn nằm viện (.xlsx)
                     </button>
                     <button type="button" class="btn-download" id="btnDownloadBca" style="display: none; background: #ef4444;">
                         📥 Tải DS đã ra viện (.xlsx)
-                    </button>
-                    <button type="button" class="btn-download" id="btnDownloadBcaNew" style="display: none; background: #2563eb;" title="File mẫu chuẩn BCA để import trực tiếp lên web lưu trú">
-                        📥 Tải DS BN mới nạp BCA (.xlsx)
                     </button>
                     <button type="button" class="btn-download" id="btnDownloadBcaNewSummary" style="display: none; background: #475569;" title="Bảng tóm tắt rút gọn để xem hoặc in">
                         📄 Tải tóm tắt BN mới (.xlsx)
@@ -2014,30 +1922,15 @@ function showDischargeResults(yCount, tCount, discharged) {
     animateCounter('statToday', tCount);
     animateCounter('statDischarged', discharged.length);
 
+    const dlBtn = document.getElementById('btnDownloadDischarge');
     if (discharged.length > 0) {
-        document.getElementById('dischargeTableCard').style.display = 'block';
         document.getElementById('noDischargeMsg').style.display = 'none';
-        document.getElementById('dischargeCount').textContent = discharged.length + ' người';
-
-        const tbody = document.getElementById('dischargeTableBody');
-        tbody.innerHTML = discharged.map((p, idx) => `
-            <tr>
-                <td>${idx + 1}</td>
-                <td><strong>${p.hoTen}</strong></td>
-                <td>${p.ngaySinh}</td>
-                <td>${p.docId}</td>
-                <td>${p.phongKhoa}</td>
-                <td>${p.ngayDen}</td>
-            </tr>
-        `).join('');
-
-        const dlBtn = document.getElementById('btnDownloadDischarge');
         dlBtn.style.display = 'inline-flex';
+        dlBtn.textContent = `📥 Tải danh sách ra viện (${discharged.length} BN)`;
         dlBtn.onclick = downloadDischargeList;
     } else {
-        document.getElementById('dischargeTableCard').style.display = 'none';
         document.getElementById('noDischargeMsg').style.display = 'block';
-        document.getElementById('btnDownloadDischarge').style.display = 'none';
+        dlBtn.style.display = 'none';
     }
 
     document.getElementById('dischargeResults').classList.add('show');
@@ -2390,27 +2283,48 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
         animateCounter('statBcaNew', newPatients.length);
     }
 
-    // --- Still hospitalized table ---
-    renderBcaTable('bcaStillCard', 'bcaStillBody', 'bcaStillCount', 'btnDownloadBcaStill', stillHospitalized, downloadBcaStillList);
-
-    // --- Discharged table ---
-    renderBcaTable('bcaTableCard', 'bcaTableBody', 'bcaDischargeCount', 'btnDownloadBca', discharged, downloadBcaList);
-
-    // --- New patients table ---
-    renderBcaTable('bcaNewCard', 'bcaNewBody', 'bcaNewCount', 'btnDownloadBcaNew', newPatients, downloadBcaNewList);
-
-    // Toggle secondary summary download button
+    // --- Cập nhật các nút tải về trực tiếp với số lượng BN ---
+    const dlBtnNew = document.getElementById('btnDownloadBcaNew');
     const dlBtnNewSum = document.getElementById('btnDownloadBcaNewSummary');
-    if (dlBtnNewSum) {
-        if (newPatients.length > 0) {
-            dlBtnNewSum.style.display = 'inline-flex';
-            dlBtnNewSum.onclick = downloadBcaNewSummary;
-        } else {
-            dlBtnNewSum.style.display = 'none';
+    if (newPatients.length > 0) {
+        if (dlBtnNew) {
+            dlBtnNew.style.display = 'inline-flex';
+            dlBtnNew.textContent = `📥 Tải DS BN mới nạp BCA (${newPatients.length} BN)`;
+            dlBtnNew.onclick = downloadBcaNewList;
         }
+        if (dlBtnNewSum) {
+            dlBtnNewSum.style.display = 'inline-flex';
+            dlBtnNewSum.textContent = `📄 Tải tóm tắt BN mới (${newPatients.length} BN)`;
+            dlBtnNewSum.onclick = downloadBcaNewSummary;
+        }
+    } else {
+        if (dlBtnNew) dlBtnNew.style.display = 'none';
+        if (dlBtnNewSum) dlBtnNewSum.style.display = 'none';
     }
 
-    // No discharge message
+    const dlBtnStill = document.getElementById('btnDownloadBcaStill');
+    if (stillHospitalized.length > 0) {
+        if (dlBtnStill) {
+            dlBtnStill.style.display = 'inline-flex';
+            dlBtnStill.textContent = `📥 Tải DS còn nằm viện (${stillHospitalized.length} BN)`;
+            dlBtnStill.onclick = downloadBcaStillList;
+        }
+    } else {
+        if (dlBtnStill) dlBtnStill.style.display = 'none';
+    }
+
+    const dlBtnDis = document.getElementById('btnDownloadBca');
+    if (discharged.length > 0) {
+        if (dlBtnDis) {
+            dlBtnDis.style.display = 'inline-flex';
+            dlBtnDis.textContent = `📥 Tải DS đã ra viện (${discharged.length} BN)`;
+            dlBtnDis.onclick = downloadBcaList;
+        }
+    } else {
+        if (dlBtnDis) dlBtnDis.style.display = 'none';
+    }
+
+    // Thông báo khi không có BN ra viện
     if (discharged.length === 0 && bcaCount > 0) {
         document.getElementById('noBcaDischargeMsg').style.display = 'block';
     } else {
@@ -2419,33 +2333,6 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
 
     document.getElementById('bcaResults').classList.add('show');
     document.getElementById('bcaResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// ===== Render a result table =====
-function renderBcaTable(cardId, tbodyId, countId, btnId, list, downloadFn) {
-    if (list.length > 0) {
-        document.getElementById(cardId).style.display = 'block';
-        document.getElementById(countId).textContent = list.length + ' người';
-
-        const tbody = document.getElementById(tbodyId);
-        tbody.innerHTML = list.map((p, idx) => `
-            <tr>
-                <td>${idx + 1}</td>
-                <td><strong>${p.hoTen}</strong></td>
-                <td>${p.ngaySinh}</td>
-                <td>${p.docId}</td>
-                <td>${p.phongKhoa}</td>
-                <td>${p.ngayDen}</td>
-            </tr>
-        `).join('');
-
-        const dlBtn = document.getElementById(btnId);
-        dlBtn.style.display = 'inline-flex';
-        dlBtn.onclick = downloadFn;
-    } else {
-        document.getElementById(cardId).style.display = 'none';
-        document.getElementById(btnId).style.display = 'none';
-    }
 }
 
 // ===== Download helpers =====
@@ -2647,10 +2534,9 @@ function resetBca() {
     if (document.getElementById('btnDownloadBcaNewSummary')) {
         document.getElementById('btnDownloadBcaNewSummary').style.display = 'none';
     }
-    document.getElementById('bcaStillCard').style.display = 'none';
-    document.getElementById('bcaTableCard').style.display = 'none';
-    document.getElementById('bcaNewCard').style.display = 'none';
-    document.getElementById('noBcaDischargeMsg').style.display = 'none';
+    if (document.getElementById('noBcaDischargeMsg')) {
+        document.getElementById('noBcaDischargeMsg').style.display = 'none';
+    }
     document.getElementById('errorBannerBca').classList.remove('show');
     bcaDischargedList = [];
     bcaStillList = [];
