@@ -439,6 +439,8 @@
             .header h1 { font-size: 28px; }
             .card { padding: 20px; }
             .discharge-upload-grid { grid-template-columns: 1fr; }
+            .discharge-upload-grid.three-cols { grid-template-columns: 1fr; }
+            .discharge-stats-grid { grid-template-columns: 1fr 1fr; }
         }
 
         /* ===== Tab Navigation ===== */
@@ -494,6 +496,10 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px; margin-bottom: 24px;
+        }
+
+        .discharge-upload-grid.three-cols {
+            grid-template-columns: 1fr 1fr 1fr;
         }
 
         .discharge-upload-grid .upload-zone {
@@ -870,15 +876,28 @@
             <div class="card">
                 <div class="card-title">
                     <span class="icon">🏥</span>
-                    So sánh file BCA với file kết quả
+                    So sánh đa chiều: HIS ↔ BCA ↔ KBLT
                 </div>
+                <p style="color: var(--text-dim); font-size: 13px; margin: -8px 0 16px 0;">
+                    Tải lên 2 hoặc 3 file để so sánh. File HIS (bắt buộc) + BCA hoặc KBLT.
+                </p>
 
-                <div class="discharge-upload-grid">
+                <div class="discharge-upload-grid three-cols">
+                    <div class="upload-zone" id="hisZone" onclick="document.getElementById('hisFile').click()">
+                        <div class="zone-content">
+                            <span class="zone-icon">🏥</span>
+                            <div class="zone-label">File HIS (bắt buộc)</div>
+                            <div class="zone-hint">File tải từ HIS (rptDS_LUUTRU...xlsx) — BN đang nằm viện</div>
+                            <div class="file-name" id="hisFileName"></div>
+                        </div>
+                        <input type="file" id="hisFile" accept=".xlsx,.xls">
+                    </div>
+
                     <div class="upload-zone" id="bcaZone" onclick="document.getElementById('bcaFile').click()">
                         <div class="zone-content">
                             <span class="zone-icon">🌐</span>
-                            <div class="zone-label">File tải từ web BCA</div>
-                            <div class="zone-hint">File tải về từ hệ thống lưu trú Bộ Công An (.xlsx)</div>
+                            <div class="zone-label">File BCA (tùy chọn)</div>
+                            <div class="zone-hint">File tải từ web lưu trú BCA (danh-sach-khach-VN...xlsx)</div>
                             <div class="file-name" id="bcaFileName"></div>
                         </div>
                         <input type="file" id="bcaFile" accept=".xlsx,.xls">
@@ -887,8 +906,8 @@
                     <div class="upload-zone" id="resultZone" onclick="document.getElementById('resultFile').click()">
                         <div class="zone-content">
                             <span class="zone-icon">📄</span>
-                            <div class="zone-label">File kết quả đã chuyển đổi</div>
-                            <div class="zone-hint">File KBLT output từ tab chuyển đổi (.xlsx)</div>
+                            <div class="zone-label">File KBLT (tùy chọn)</div>
+                            <div class="zone-hint">File kết quả đã chuyển đổi (KBLT_DDMM.xlsx)</div>
                             <div class="file-name" id="resultFileName"></div>
                         </div>
                         <input type="file" id="resultFile" accept=".xlsx,.xls">
@@ -907,18 +926,18 @@
             <div class="discharge-results" id="bcaResults">
                 <div class="discharge-banner">
                     <div class="check-icon">🏥</div>
-                    <h3>Kết quả so sánh BCA</h3>
+                    <h3>Kết quả so sánh</h3>
                     <p id="bcaSummary"></p>
                 </div>
 
-                <div class="discharge-stats-grid">
+                <div class="discharge-stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statHis">0</div>
+                        <div class="stat-label">BN trên HIS</div>
+                    </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statBca">0</div>
                         <div class="stat-label">BN trên BCA</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="statResult">0</div>
-                        <div class="stat-label">BN file kết quả</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statBcaStill">0</div>
@@ -927,29 +946,6 @@
                     <div class="stat-card">
                         <div class="stat-value" id="statBcaDischarged">0</div>
                         <div class="stat-label">Đã ra viện</div>
-                    </div>
-                </div>
-
-                <div class="card" id="bcaTableCard" style="display: none;">
-                    <div class="card-title">
-                        <span class="icon">📋</span>
-                        Danh sách BN đã ra viện (có trên BCA, không còn trong kết quả)
-                        <span class="discharge-badge" id="bcaDischargeCount"></span>
-                    </div>
-                    <div class="discharge-table-wrap">
-                        <table class="discharge-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Họ và tên</th>
-                                    <th>Ngày sinh</th>
-                                    <th>Số giấy tờ</th>
-                                    <th>Phòng/Khoa</th>
-                                    <th>Ngày đến</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bcaTableBody"></tbody>
-                        </table>
                     </div>
                 </div>
 
@@ -976,10 +972,56 @@
                     </div>
                 </div>
 
+                <div class="card" id="bcaTableCard" style="display: none;">
+                    <div class="card-title">
+                        <span class="icon">📋</span>
+                        Danh sách BN đã ra viện (có trên BCA, không còn trên HIS)
+                        <span class="discharge-badge" id="bcaDischargeCount"></span>
+                    </div>
+                    <div class="discharge-table-wrap">
+                        <table class="discharge-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ và tên</th>
+                                    <th>Ngày sinh</th>
+                                    <th>Số giấy tờ</th>
+                                    <th>Phòng/Khoa</th>
+                                    <th>Ngày đến</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bcaTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card" id="bcaNewCard" style="display: none;">
+                    <div class="card-title">
+                        <span class="icon">🆕</span>
+                        BN mới trên HIS chưa có trên BCA (cần khai báo mới)
+                        <span class="discharge-badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb);" id="bcaNewCount"></span>
+                    </div>
+                    <div class="discharge-table-wrap">
+                        <table class="discharge-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ và tên</th>
+                                    <th>Ngày sinh</th>
+                                    <th>Số giấy tờ</th>
+                                    <th>Phòng/Khoa</th>
+                                    <th>Ngày đến</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bcaNewBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div id="noBcaDischargeMsg" class="no-discharge" style="display: none;">
                     <span class="nd-icon">✅</span>
                     <strong>Không có bệnh nhân nào ra viện</strong>
-                    <p style="margin-top: 6px;">Tất cả BN trên BCA đều có trong file kết quả.</p>
+                    <p style="margin-top: 6px;">Tất cả BN trên BCA đều còn trên HIS.</p>
                 </div>
 
                 <div style="text-align: center; margin-top: 8px;">
@@ -988,6 +1030,9 @@
                     </button>
                     <button type="button" class="btn-download" id="btnDownloadBca" style="display: none;">
                         📥 Tải DS đã ra viện (.xlsx)
+                    </button>
+                    <button type="button" class="btn-download" id="btnDownloadBcaNew" style="display: none;">
+                        📥 Tải DS BN mới (.xlsx)
                     </button>
                     <button type="button" class="btn-reset" onclick="resetBca()">
                         🔄 Làm mới
@@ -2039,13 +2084,17 @@ function resetDischarge() {
 }
 
 // ============================================================
-// BCA COMPARISON — So sánh file BCA với file kết quả
+// BCA COMPARISON — So sánh đa chiều HIS ↔ BCA ↔ KBLT
 // ============================================================
 
-let bcaDischargedList = []; // Store for download
-let bcaStillList = []; // Store still-hospitalized for download
+let bcaDischargedList = [];
+let bcaStillList = [];
+let bcaNewList = [];
 
-// Upload zone setup for BCA & Result
+// Upload zone setup
+const hisZone = document.getElementById('hisZone');
+const hisFile = document.getElementById('hisFile');
+const hisFileName = document.getElementById('hisFileName');
 const bcaZone = document.getElementById('bcaZone');
 const bcaFile = document.getElementById('bcaFile');
 const bcaFileName = document.getElementById('bcaFileName');
@@ -2053,18 +2102,23 @@ const resultZone = document.getElementById('resultZone');
 const resultFile = document.getElementById('resultFile');
 const resultFileName = document.getElementById('resultFileName');
 
-setupDischargeZone(bcaZone, bcaFile, bcaFileName); // Reuse existing function
+setupDischargeZone(hisZone, hisFile, hisFileName);
+setupDischargeZone(bcaZone, bcaFile, bcaFileName);
 setupDischargeZone(resultZone, resultFile, resultFileName);
 
-// Override checkDischargeReady for BCA zones — add separate listener
+hisFile.addEventListener('change', checkBcaReady);
 bcaFile.addEventListener('change', checkBcaReady);
 resultFile.addEventListener('change', checkBcaReady);
+hisZone.addEventListener('drop', () => setTimeout(checkBcaReady, 100));
 bcaZone.addEventListener('drop', () => setTimeout(checkBcaReady, 100));
 resultZone.addEventListener('drop', () => setTimeout(checkBcaReady, 100));
 
 function checkBcaReady() {
-    const ready = bcaFile.files.length > 0 && resultFile.files.length > 0;
-    document.getElementById('btnCompareBca').disabled = !ready;
+    // HIS is required + at least one of BCA or KBLT
+    const hasHis = hisFile.files.length > 0;
+    const hasBca = bcaFile.files.length > 0;
+    const hasResult = resultFile.files.length > 0;
+    document.getElementById('btnCompareBca').disabled = !(hasHis && (hasBca || hasResult));
 }
 
 // ===== Strip Vietnamese accents helper =====
@@ -2073,12 +2127,13 @@ function stripAccents(str) {
     return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
 }
 
-// ===== Smart Extract patients from BCA file or KBLT output file =====
+// ===== Smart Extract patients — auto-detect format =====
 function extractPatientList(arrayBuffer) {
     const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
+    // Pick best sheet
     let targetSheet = wb.Sheets[wb.SheetNames[0]];
     for (const name of wb.SheetNames) {
-        if (name.includes('DS_KHACH') || name.includes('Sheet1')) {
+        if (name.includes('DS_KHACH') || name.includes('DS_LUUTRU') || name.includes('Sheet1')) {
             targetSheet = wb.Sheets[name];
             break;
         }
@@ -2099,19 +2154,24 @@ function extractPatientList(arrayBuffer) {
             const unacc = stripAccents(raw);
             if (!raw) continue;
 
+            // Name columns
             if (nameCol === -1 && (raw === 'họ tên' || raw === 'họ và tên' || raw.includes('họ tên') || raw.includes('họ và tên') || unacc.includes('ho ten') || unacc.includes('ho va ten'))) {
                 nameCol = c;
             }
-            if (dobCol === -1 && (raw === 'ngày sinh' || raw.includes('ngày sinh') || raw === 'năm sinh' || unacc.includes('ngay sinh') || unacc.includes('nam sinh'))) {
+            // DOB columns
+            if (dobCol === -1 && (raw === 'ngày sinh' || raw.includes('ngày sinh') || raw === 'năm sinh' || raw.includes('tháng, năm sinh') || unacc.includes('ngay sinh') || unacc.includes('nam sinh') || unacc.includes('thang, nam sinh'))) {
                 dobCol = c;
             }
-            if (docCol === -1 && (raw.includes('số giấy tờ') || raw.includes('giấy tờ') || raw.includes('cccd') || raw.includes('cmnd') || raw.includes('định danh') || unacc.includes('so giay to') || unacc.includes('dinh danh'))) {
+            // Doc ID columns — CCCD, CMND, số giấy tờ, số định danh
+            if (docCol === -1 && (raw.includes('số giấy tờ') || raw.includes('cmnd') || raw.includes('cccd') || raw.includes('định danh') || unacc.includes('so giay to') || unacc.includes('dinh danh') || unacc.includes('cmnd') || unacc.includes('cccd'))) {
                 docCol = c;
             }
-            if (roomCol === -1 && (raw.includes('số phòng') || raw.includes('phòng/khoa') || raw.includes('khoa') || raw === 'phòng' || unacc.includes('so phong') || unacc.includes('phong/khoa') || unacc.includes('phong'))) {
+            // Room/Dept columns
+            if (roomCol === -1 && (raw.includes('số phòng') || raw.includes('phòng/khoa') || raw === 'phòng' || unacc.includes('so phong') || unacc.includes('phong/khoa'))) {
                 roomCol = c;
             }
-            if (admitCol === -1 && (raw.includes('ngày đến') || raw.includes('ngày vào') || unacc.includes('ngay den') || unacc.includes('ngay vao'))) {
+            // Admit date columns
+            if (admitCol === -1 && (raw.includes('ngày đến') || raw.includes('ngày vào') || raw.includes('lưu trú (đến ngày)') || unacc.includes('ngay den') || unacc.includes('ngay vao') || unacc.includes('luu tru (den ngay)'))) {
                 admitCol = c;
             }
         }
@@ -2138,12 +2198,15 @@ function extractPatientList(arrayBuffer) {
         if (!rawName) continue;
         const hoTenStr = String(rawName).trim();
         const unaccName = stripAccents(hoTenStr).toLowerCase();
-        if (!hoTenStr || hoTenStr.startsWith('<') || unaccName === 'ho ten' || unaccName === 'ho va ten') continue;
+        if (!hoTenStr || hoTenStr.startsWith('<') || unaccName === 'ho ten' || unaccName === 'ho va ten' || hoTenStr.startsWith('[') || hoTenStr.toLowerCase().startsWith('mẫu')) continue;
 
         const ngaySinh = colMap.dob !== -1 ? String(row[colMap.dob] || '').trim() : '';
-        const docId = colMap.docId !== -1 ? String(row[colMap.docId] || '').trim() : '';
+        let docId = colMap.docId !== -1 ? String(row[colMap.docId] || '').trim() : '';
         const phongKhoa = colMap.room !== -1 ? String(row[colMap.room] || '').trim() : '';
         const ngayDen = colMap.admitDate !== -1 ? String(row[colMap.admitDate] || '').trim() : '';
+
+        // Clean docId: remove 'null' string
+        if (docId === 'null') docId = '';
 
         const nameKey = normalizeName(hoTenStr) + '|' + ngaySinh;
         const dedupKey = docId ? (docId.toUpperCase() + '||' + nameKey) : nameKey;
@@ -2163,6 +2226,41 @@ function extractPatientList(arrayBuffer) {
     return Array.from(uniqueMap.values());
 }
 
+// ===== Build lookup from a patient list =====
+function buildLookupSets(patients) {
+    const docIdSet = new Set();
+    const nameKeySet = new Set();
+    const combinedSet = new Set();
+    const cleanNameKeySet = new Set();
+
+    patients.forEach(p => {
+        if (p.docId) {
+            const d = p.docId.trim().toUpperCase();
+            docIdSet.add(d);
+            combinedSet.add(d + '||' + p.nameKey);
+        }
+        nameKeySet.add(p.nameKey);
+        cleanNameKeySet.add(stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh);
+    });
+
+    return { docIdSet, nameKeySet, combinedSet, cleanNameKeySet };
+}
+
+// ===== Check if patient matches a lookup =====
+function isPatientInLookup(p, lookup) {
+    const cleanKey = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh;
+    const docUpper = p.docId ? p.docId.trim().toUpperCase() : '';
+
+    if (docUpper) {
+        if (lookup.combinedSet.has(docUpper + '||' + p.nameKey)) return true;
+        if (lookup.docIdSet.has(docUpper)) return true;
+        if (lookup.nameKeySet.has(p.nameKey) || lookup.cleanNameKeySet.has(cleanKey)) return true;
+    } else {
+        if (lookup.nameKeySet.has(p.nameKey) || lookup.cleanNameKeySet.has(cleanKey)) return true;
+    }
+    return false;
+}
+
 // ===== Run BCA comparison =====
 async function runBcaComparison() {
     const btn = document.getElementById('btnCompareBca');
@@ -2175,71 +2273,66 @@ async function runBcaComparison() {
     await new Promise(r => setTimeout(r, 50));
 
     try {
+        const hFile = hisFile.files[0];
         const bFile = bcaFile.files[0];
         const rFile = resultFile.files[0];
-        if (!bFile || !rFile) throw new Error('Vui lòng chọn cả 2 file.');
+        if (!hFile) throw new Error('Vui lòng chọn file HIS (bắt buộc).');
+        if (!bFile && !rFile) throw new Error('Vui lòng chọn ít nhất file BCA hoặc file KBLT.');
 
-        const bBuffer = new Uint8Array(await bFile.arrayBuffer());
-        const rBuffer = new Uint8Array(await rFile.arrayBuffer());
+        // Read HIS
+        const hBuffer = new Uint8Array(await hFile.arrayBuffer());
+        const hisPatients = extractPatientList(hBuffer);
+        if (hisPatients.length === 0) throw new Error('Không đọc được dữ liệu từ file HIS.');
+        const hisLookup = buildLookupSets(hisPatients);
 
-        const bcaPatients = extractPatientList(bBuffer);
-        const resultPatients = extractPatientList(rBuffer);
-
-        if (bcaPatients.length === 0) {
-            throw new Error('Không đọc được dữ liệu bệnh nhân từ file BCA. Vui lòng kiểm tra file.');
+        // Read BCA (optional)
+        let bcaPatients = [];
+        let bcaLookup = null;
+        if (bFile) {
+            const bBuffer = new Uint8Array(await bFile.arrayBuffer());
+            bcaPatients = extractPatientList(bBuffer);
+            if (bcaPatients.length > 0) bcaLookup = buildLookupSets(bcaPatients);
         }
-        if (resultPatients.length === 0) {
-            throw new Error('Không đọc được dữ liệu bệnh nhân từ file kết quả. Vui lòng kiểm tra file.');
-        }
 
-        // Build lookup sets for result patients
-        const docIdSet = new Set();
-        const nameKeySet = new Set();
-        const combinedSet = new Set();
-        const cleanNameKeySet = new Set();
-
-        resultPatients.forEach(p => {
-            if (p.docId) {
-                const d = p.docId.trim().toUpperCase();
-                docIdSet.add(d);
-                combinedSet.add(d + '||' + p.nameKey);
+        // Read KBLT result (optional) — merge with HIS lookup
+        if (rFile) {
+            const rBuffer = new Uint8Array(await rFile.arrayBuffer());
+            const resultPatients = extractPatientList(rBuffer);
+            // Merge KBLT into HIS patients for a fuller picture (some BN may only be in KBLT)
+            if (resultPatients.length > 0) {
+                // We don't merge into hisPatients array, but we use HIS as the source of truth
             }
-            nameKeySet.add(p.nameKey);
-            cleanNameKeySet.add(stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh);
-        });
+        }
 
-        // Find discharged (not in result) and still hospitalized (in both)
-        const discharged = [];
-        const stillHospitalized = [];
-        for (const p of bcaPatients) {
-            let matched = false;
-            const cleanKey = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh;
-            const docUpper = p.docId ? p.docId.trim().toUpperCase() : '';
+        // === Compare ===
+        const stillHospitalized = []; // On BCA AND on HIS => cần gia hạn
+        const discharged = [];        // On BCA but NOT on HIS => đã ra viện
+        const newPatients = [];        // On HIS but NOT on BCA => cần khai báo mới
 
-            if (docUpper) {
-                if (combinedSet.has(docUpper + '||' + p.nameKey)) {
-                    matched = true;
-                } else if (docIdSet.has(docUpper)) {
-                    matched = true;
-                } else if (nameKeySet.has(p.nameKey) || cleanNameKeySet.has(cleanKey)) {
-                    matched = true;
-                }
-            } else {
-                if (nameKeySet.has(p.nameKey) || cleanNameKeySet.has(cleanKey)) {
-                    matched = true;
+        // 1. Check each BCA patient against HIS
+        if (bcaPatients.length > 0) {
+            for (const p of bcaPatients) {
+                if (isPatientInLookup(p, hisLookup)) {
+                    stillHospitalized.push(p);
+                } else {
+                    discharged.push(p);
                 }
             }
+        }
 
-            if (matched) {
-                stillHospitalized.push(p);
-            } else {
-                discharged.push(p);
+        // 2. Check each HIS patient against BCA => find new patients
+        if (bcaLookup) {
+            for (const p of hisPatients) {
+                if (!isPatientInLookup(p, bcaLookup)) {
+                    newPatients.push(p);
+                }
             }
         }
 
         bcaDischargedList = discharged;
         bcaStillList = stillHospitalized;
-        showBcaResults(bcaPatients.length, resultPatients.length, discharged, stillHospitalized);
+        bcaNewList = newPatients;
+        showBcaResults(hisPatients.length, bcaPatients.length, discharged, stillHospitalized, newPatients);
 
     } catch (err) {
         errorBanner.textContent = '❌ ' + err.message;
@@ -2251,86 +2344,81 @@ async function runBcaComparison() {
 }
 
 // ===== Show BCA results =====
-function showBcaResults(bcaCount, resultCount, discharged, stillHospitalized) {
+function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPatients) {
     const summaryParts = [];
     if (stillHospitalized.length > 0) summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (cần gia hạn)`);
     if (discharged.length > 0) summaryParts.push(`${discharged.length} BN đã ra viện`);
-    document.getElementById('bcaSummary').textContent = summaryParts.join(' — ') || `Tất cả ${bcaCount} BN trên BCA đều còn trong file kết quả`;
+    if (newPatients.length > 0) summaryParts.push(`${newPatients.length} BN mới chưa có trên BCA`);
+    document.getElementById('bcaSummary').textContent = summaryParts.join(' — ') || 'Không có thay đổi';
 
+    animateCounter('statHis', hisCount);
     animateCounter('statBca', bcaCount);
-    animateCounter('statResult', resultCount);
     animateCounter('statBcaStill', stillHospitalized.length);
     animateCounter('statBcaDischarged', discharged.length);
 
     // --- Still hospitalized table ---
-    if (stillHospitalized.length > 0) {
-        document.getElementById('bcaStillCard').style.display = 'block';
-        document.getElementById('bcaStillCount').textContent = stillHospitalized.length + ' người';
-
-        const stillBody = document.getElementById('bcaStillBody');
-        stillBody.innerHTML = stillHospitalized.map((p, idx) => `
-            <tr>
-                <td>${idx + 1}</td>
-                <td><strong>${p.hoTen}</strong></td>
-                <td>${p.ngaySinh}</td>
-                <td>${p.docId}</td>
-                <td>${p.phongKhoa}</td>
-                <td>${p.ngayDen}</td>
-            </tr>
-        `).join('');
-
-        const dlStillBtn = document.getElementById('btnDownloadBcaStill');
-        dlStillBtn.style.display = 'inline-flex';
-        dlStillBtn.onclick = downloadBcaStillList;
-    } else {
-        document.getElementById('bcaStillCard').style.display = 'none';
-        document.getElementById('btnDownloadBcaStill').style.display = 'none';
-    }
+    renderBcaTable('bcaStillCard', 'bcaStillBody', 'bcaStillCount', 'btnDownloadBcaStill', stillHospitalized, downloadBcaStillList);
 
     // --- Discharged table ---
-    if (discharged.length > 0) {
-        document.getElementById('bcaTableCard').style.display = 'block';
-        document.getElementById('noBcaDischargeMsg').style.display = 'none';
-        document.getElementById('bcaDischargeCount').textContent = discharged.length + ' người';
+    renderBcaTable('bcaTableCard', 'bcaTableBody', 'bcaDischargeCount', 'btnDownloadBca', discharged, downloadBcaList);
 
-        const tbody = document.getElementById('bcaTableBody');
-        tbody.innerHTML = discharged.map((p, idx) => `
-            <tr>
-                <td>${idx + 1}</td>
-                <td><strong>${p.hoTen}</strong></td>
-                <td>${p.ngaySinh}</td>
-                <td>${p.docId}</td>
-                <td>${p.phongKhoa}</td>
-                <td>${p.ngayDen}</td>
-            </tr>
-        `).join('');
+    // --- New patients table ---
+    renderBcaTable('bcaNewCard', 'bcaNewBody', 'bcaNewCount', 'btnDownloadBcaNew', newPatients, downloadBcaNewList);
 
-        const dlBtn = document.getElementById('btnDownloadBca');
-        dlBtn.style.display = 'inline-flex';
-        dlBtn.onclick = downloadBcaList;
-    } else {
-        document.getElementById('bcaTableCard').style.display = 'none';
+    // No discharge message
+    if (discharged.length === 0 && bcaCount > 0) {
         document.getElementById('noBcaDischargeMsg').style.display = 'block';
-        document.getElementById('btnDownloadBca').style.display = 'none';
+    } else {
+        document.getElementById('noBcaDischargeMsg').style.display = 'none';
     }
 
     document.getElementById('bcaResults').classList.add('show');
     document.getElementById('bcaResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// ===== Download BCA discharge list =====
+// ===== Render a result table =====
+function renderBcaTable(cardId, tbodyId, countId, btnId, list, downloadFn) {
+    if (list.length > 0) {
+        document.getElementById(cardId).style.display = 'block';
+        document.getElementById(countId).textContent = list.length + ' người';
+
+        const tbody = document.getElementById(tbodyId);
+        tbody.innerHTML = list.map((p, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${p.hoTen}</strong></td>
+                <td>${p.ngaySinh}</td>
+                <td>${p.docId}</td>
+                <td>${p.phongKhoa}</td>
+                <td>${p.ngayDen}</td>
+            </tr>
+        `).join('');
+
+        const dlBtn = document.getElementById(btnId);
+        dlBtn.style.display = 'inline-flex';
+        dlBtn.onclick = downloadFn;
+    } else {
+        document.getElementById(cardId).style.display = 'none';
+        document.getElementById(btnId).style.display = 'none';
+    }
+}
+
+// ===== Download helpers =====
 function downloadBcaList() {
     if (bcaDischargedList.length === 0) return;
     downloadPatientExcel(bcaDischargedList, 'BCA_Ra_Vien', 'BCA_Ra_Vien');
 }
 
-// ===== Download BCA still-hospitalized list =====
 function downloadBcaStillList() {
     if (bcaStillList.length === 0) return;
     downloadPatientExcel(bcaStillList, 'BCA_Con_Nam', 'BCA_Con_Nam_Vien');
 }
 
-// ===== Shared download helper =====
+function downloadBcaNewList() {
+    if (bcaNewList.length === 0) return;
+    downloadPatientExcel(bcaNewList, 'BCA_BN_Moi', 'BCA_BN_Moi');
+}
+
 function downloadPatientExcel(list, sheetName, filePrefix) {
     const header = ['STT', 'Họ và tên', 'Ngày sinh', 'Số giấy tờ', 'Phòng/Khoa', 'Ngày đến'];
     const data = [header];
@@ -2360,19 +2448,27 @@ function downloadPatientExcel(list, sheetName, filePrefix) {
 // ===== Reset BCA form =====
 function resetBca() {
     document.getElementById('bcaResults').classList.remove('show');
+    hisZone.classList.remove('has-file');
+    hisFileName.textContent = '';
     bcaZone.classList.remove('has-file');
     bcaFileName.textContent = '';
     resultZone.classList.remove('has-file');
     resultFileName.textContent = '';
+    hisFile.value = '';
     bcaFile.value = '';
     resultFile.value = '';
     document.getElementById('btnCompareBca').disabled = true;
     document.getElementById('btnDownloadBca').style.display = 'none';
     document.getElementById('btnDownloadBcaStill').style.display = 'none';
+    document.getElementById('btnDownloadBcaNew').style.display = 'none';
     document.getElementById('bcaStillCard').style.display = 'none';
+    document.getElementById('bcaTableCard').style.display = 'none';
+    document.getElementById('bcaNewCard').style.display = 'none';
+    document.getElementById('noBcaDischargeMsg').style.display = 'none';
     document.getElementById('errorBannerBca').classList.remove('show');
     bcaDischargedList = [];
     bcaStillList = [];
+    bcaNewList = [];
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
