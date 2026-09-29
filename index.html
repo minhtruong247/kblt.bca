@@ -886,8 +886,8 @@
                     <div class="upload-zone" id="hisZone" onclick="document.getElementById('hisFile').click()">
                         <div class="zone-content">
                             <span class="zone-icon">🏥</span>
-                            <div class="zone-label">File HIS (bắt buộc)</div>
-                            <div class="zone-hint">File tải từ HIS (rptDS_LUUTRU...xlsx) — BN đang nằm viện</div>
+                            <div class="zone-label">File HIS / KBLT (bắt buộc)</div>
+                            <div class="zone-hint">File KBLT đã chuyển đổi hoặc File HIS (rptDS_LUUTRU...xlsx)</div>
                             <div class="file-name" id="hisFileName"></div>
                         </div>
                         <input type="file" id="hisFile" accept=".xlsx,.xls">
@@ -906,8 +906,8 @@
                     <div class="upload-zone" id="resultZone" onclick="document.getElementById('resultFile').click()">
                         <div class="zone-content">
                             <span class="zone-icon">📄</span>
-                            <div class="zone-label">File KBLT (tùy chọn)</div>
-                            <div class="zone-hint">File kết quả đã chuyển đổi (KBLT_DDMM.xlsx)</div>
+                            <div class="zone-label">File KBLT phụ (tùy chọn)</div>
+                            <div class="zone-hint">File KBLT_DDMM.xlsx nếu ô 1 bạn chọn file HIS gốc</div>
                             <div class="file-name" id="resultFileName"></div>
                         </div>
                         <input type="file" id="resultFile" accept=".xlsx,.xls">
@@ -930,7 +930,7 @@
                     <p id="bcaSummary"></p>
                 </div>
 
-                <div class="discharge-stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="discharge-stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
                     <div class="stat-card">
                         <div class="stat-value" id="statHis">0</div>
                         <div class="stat-label">BN trên HIS</div>
@@ -946,6 +946,10 @@
                     <div class="stat-card">
                         <div class="stat-value" id="statBcaDischarged">0</div>
                         <div class="stat-label">Đã ra viện</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statBcaNew">0</div>
+                        <div class="stat-label">BN mới (cần nạp)</div>
                     </div>
                 </div>
 
@@ -1024,15 +1028,18 @@
                     <p style="margin-top: 6px;">Tất cả BN trên BCA đều còn trên HIS.</p>
                 </div>
 
-                <div style="text-align: center; margin-top: 8px;">
-                    <button type="button" class="btn-download" id="btnDownloadBcaStill" style="display: none;">
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px;">
+                    <button type="button" class="btn-download" id="btnDownloadBcaStill" style="display: none; background: #10b981;">
                         📥 Tải DS còn nằm viện (.xlsx)
                     </button>
-                    <button type="button" class="btn-download" id="btnDownloadBca" style="display: none;">
+                    <button type="button" class="btn-download" id="btnDownloadBca" style="display: none; background: #ef4444;">
                         📥 Tải DS đã ra viện (.xlsx)
                     </button>
-                    <button type="button" class="btn-download" id="btnDownloadBcaNew" style="display: none;">
-                        📥 Tải DS BN mới (.xlsx)
+                    <button type="button" class="btn-download" id="btnDownloadBcaNew" style="display: none; background: #2563eb;" title="File mẫu chuẩn BCA để import trực tiếp lên web lưu trú">
+                        📥 Tải DS BN mới nạp BCA (.xlsx)
+                    </button>
+                    <button type="button" class="btn-download" id="btnDownloadBcaNewSummary" style="display: none; background: #475569;" title="Bảng tóm tắt rút gọn để xem hoặc in">
+                        📄 Tải tóm tắt BN mới (.xlsx)
                     </button>
                     <button type="button" class="btn-reset" onclick="resetBca()">
                         🔄 Làm mới
@@ -2131,14 +2138,22 @@ function stripAccents(str) {
 function extractPatientList(arrayBuffer) {
     const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
     // Pick best sheet
-    let targetSheet = wb.Sheets[wb.SheetNames[0]];
+    let targetSheetName = wb.SheetNames[0];
     for (const name of wb.SheetNames) {
         if (name.includes('DS_KHACH') || name.includes('DS_LUUTRU') || name.includes('Sheet1')) {
-            targetSheet = wb.Sheets[name];
+            targetSheetName = name;
             break;
         }
     }
+    const targetSheet = wb.Sheets[targetSheetName];
     const rows = XLSX.utils.sheet_to_json(targetSheet, { header: 1, defval: null, raw: true });
+    const isKblt = targetSheetName.includes('DS_KHACH') || (rows[1] && rows[1].some(c => String(c).includes('HỌ TÊN')));
+
+    let hisColMap = null;
+    try {
+        const [hIdx, cMap] = findSourceColumns(rows);
+        if (hIdx !== null && cMap && cMap.ho_ten !== undefined) hisColMap = cMap;
+    } catch (e) {}
 
     let headerRowIdx = -1;
     let colMap = { name: -1, dob: -1, docId: -1, room: -1, admitDate: -1 };
@@ -2218,7 +2233,10 @@ function extractPatientList(arrayBuffer) {
                 docId: docId,
                 phongKhoa: phongKhoa,
                 ngayDen: ngayDen,
-                nameKey: nameKey
+                nameKey: nameKey,
+                rawRow: row,
+                isKblt: isKblt,
+                colMap: hisColMap
             });
         }
     }
@@ -2294,13 +2312,26 @@ async function runBcaComparison() {
             if (bcaPatients.length > 0) bcaLookup = buildLookupSets(bcaPatients);
         }
 
-        // Read KBLT result (optional) — merge with HIS lookup
+        // Read KBLT result (optional) — match KBLT template rows to hisPatients
         if (rFile) {
             const rBuffer = new Uint8Array(await rFile.arrayBuffer());
             const resultPatients = extractPatientList(rBuffer);
-            // Merge KBLT into HIS patients for a fuller picture (some BN may only be in KBLT)
             if (resultPatients.length > 0) {
-                // We don't merge into hisPatients array, but we use HIS as the source of truth
+                const kbltDocMap = new Map();
+                const kbltNameMap = new Map();
+                resultPatients.forEach(p => {
+                    if (p.docId) kbltDocMap.set(p.docId.toUpperCase(), p);
+                    kbltNameMap.set(p.nameKey, p);
+                });
+                hisPatients.forEach(p => {
+                    if (!p.isKblt) {
+                        const m = (p.docId && kbltDocMap.get(p.docId.toUpperCase())) || kbltNameMap.get(p.nameKey);
+                        if (m && m.rawRow) {
+                            p.rawRow = m.rawRow;
+                            p.isKblt = true;
+                        }
+                    }
+                });
             }
         }
 
@@ -2348,13 +2379,16 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
     const summaryParts = [];
     if (stillHospitalized.length > 0) summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (cần gia hạn)`);
     if (discharged.length > 0) summaryParts.push(`${discharged.length} BN đã ra viện`);
-    if (newPatients.length > 0) summaryParts.push(`${newPatients.length} BN mới chưa có trên BCA`);
+    if (newPatients.length > 0) summaryParts.push(`${newPatients.length} BN mới chưa có trên BCA (cần nạp)`);
     document.getElementById('bcaSummary').textContent = summaryParts.join(' — ') || 'Không có thay đổi';
 
     animateCounter('statHis', hisCount);
     animateCounter('statBca', bcaCount);
     animateCounter('statBcaStill', stillHospitalized.length);
     animateCounter('statBcaDischarged', discharged.length);
+    if (document.getElementById('statBcaNew')) {
+        animateCounter('statBcaNew', newPatients.length);
+    }
 
     // --- Still hospitalized table ---
     renderBcaTable('bcaStillCard', 'bcaStillBody', 'bcaStillCount', 'btnDownloadBcaStill', stillHospitalized, downloadBcaStillList);
@@ -2364,6 +2398,17 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
 
     // --- New patients table ---
     renderBcaTable('bcaNewCard', 'bcaNewBody', 'bcaNewCount', 'btnDownloadBcaNew', newPatients, downloadBcaNewList);
+
+    // Toggle secondary summary download button
+    const dlBtnNewSum = document.getElementById('btnDownloadBcaNewSummary');
+    if (dlBtnNewSum) {
+        if (newPatients.length > 0) {
+            dlBtnNewSum.style.display = 'inline-flex';
+            dlBtnNewSum.onclick = downloadBcaNewSummary;
+        } else {
+            dlBtnNewSum.style.display = 'none';
+        }
+    }
 
     // No discharge message
     if (discharged.length === 0 && bcaCount > 0) {
@@ -2414,9 +2459,147 @@ function downloadBcaStillList() {
     downloadPatientExcel(bcaStillList, 'BCA_Con_Nam', 'BCA_Con_Nam_Vien');
 }
 
+// Xuất file BN Mới theo đúng File Mẫu chuẩn KBLT của Bộ Công An
 function downloadBcaNewList() {
     if (bcaNewList.length === 0) return;
+
+    if (templateData) {
+        try {
+            const wbTpl = XLSX.read(templateData, { type: 'array', cellDates: false });
+            const wsTpl = wbTpl.Sheets['DS_KHACH_VIET_NAM_LUU_TRU'];
+            if (wsTpl) {
+                const tplRange = XLSX.utils.decode_range(wsTpl['!ref'] || 'A1');
+                clearCells(wsTpl, 2, Math.max(tplRange.e.r, 2000), 0, 18);
+
+                let lk = null;
+                bcaNewList.forEach((p, idx) => {
+                    const r = 2 + idx;
+                    setCell(wsTpl, r, 0, idx + 1);
+
+                    if (p.isKblt && p.rawRow && p.rawRow.length >= 10) {
+                        for (let c = 1; c < Math.min(p.rawRow.length, 19); c++) {
+                            setCell(wsTpl, r, c, (p.rawRow[c] !== undefined && p.rawRow[c] !== null) ? p.rawRow[c] : '');
+                        }
+                    } else if (p.rawRow && p.colMap) {
+                        if (!lk) lk = buildLookups(wbTpl);
+                        fillTplRowFromHis(wsTpl, r, p.rawRow, p.colMap, lk, idx + 1);
+                    } else {
+                        // Fallback generic mapping
+                        setCell(wsTpl, r, 1, p.hoTen);
+                        setCell(wsTpl, r, 2, p.ngaySinh);
+                        setCell(wsTpl, r, 3, 'F - Nữ');
+                        setCell(wsTpl, r, 4, 'VNM - Viet Nam');
+                        setCell(wsTpl, r, 5, (p.docId && p.docId.length === 12) ? '1 - Thẻ CCCD' : '3 - Thẻ BHYT');
+                        setCell(wsTpl, r, 7, p.docId || '');
+                        setCell(wsTpl, r, 9, '3 - Khác');
+                        setCell(wsTpl, r, 13, p.ngayDen || '');
+                        setCell(wsTpl, r, 15, p.phongKhoa || '');
+                        setCell(wsTpl, r, 16, '1 - Chữa bệnh');
+                    }
+                });
+
+                wsTpl['!ref'] = XLSX.utils.encode_range({
+                    s: { r: 0, c: 0 },
+                    e: { r: 1 + bcaNewList.length, c: 18 }
+                });
+
+                const now = new Date();
+                const dd = String(now.getDate()).padStart(2, '0');
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                XLSX.writeFile(wbTpl, `BCA_BN_Moi_${dd}${mm}.xlsx`);
+                return;
+            }
+        } catch (e) {
+            console.error('Lỗi khi xuất template BCA:', e);
+        }
+    }
+
+    // Fallback if templateData is not loaded
     downloadPatientExcel(bcaNewList, 'BCA_BN_Moi', 'BCA_BN_Moi');
+}
+
+// Xuất file tóm tắt rút gọn (để in hoặc xem nhanh)
+function downloadBcaNewSummary() {
+    if (bcaNewList.length === 0) return;
+    downloadPatientExcel(bcaNewList, 'BCA_BN_Moi_TomTat', 'BCA_BN_Moi_TomTat');
+}
+
+function fillTplRowFromHis(wsTpl, tplRow, srcRow, colMap, lk, stt) {
+    function safeGet(row, key) {
+        if (key in colMap && row && colMap[key] < row.length) {
+            return row[colMap[key]];
+        }
+        return null;
+    }
+    setCell(wsTpl, tplRow, 0, stt);
+    const hoTen = safeGet(srcRow, 'ho_ten') || '';
+    setCell(wsTpl, tplRow, 1, hoTen);
+
+    let ngaySinhRaw = String(safeGet(srcRow, 'ngay_sinh') || '').trim();
+    if (ngaySinhRaw && ngaySinhRaw.length === 4 && /^\d{4}$/.test(ngaySinhRaw)) {
+        ngaySinhRaw = '01/01/' + ngaySinhRaw;
+    }
+    setCell(wsTpl, tplRow, 2, ngaySinhRaw);
+
+    const gtRaw = nfc(safeGet(srcRow, 'gioi_tinh'));
+    setCell(wsTpl, tplRow, 3, mapGeneric(gtRaw, lk.gioiTinh));
+
+    const qtRaw = nfc(safeGet(srcRow, 'quoc_tich'));
+    setCell(wsTpl, tplRow, 4, mapGeneric(qtRaw, lk.quocTich));
+
+    let lgtRaw = '', soGtRaw = '';
+    if ('loai_giay_to' in colMap && 'so_giay_to' in colMap) {
+        lgtRaw = nfc(safeGet(srcRow, 'loai_giay_to'));
+        soGtRaw = safeGet(srcRow, 'so_giay_to');
+    } else {
+        const soCccd = safeGet(srcRow, 'so_cccd');
+        const soHc = safeGet(srcRow, 'so_ho_chieu');
+        const soGtk = safeGet(srcRow, 'so_giay_to_khac');
+        if (soCccd) { lgtRaw = 'CCCD'; soGtRaw = soCccd; }
+        else if (soHc) { lgtRaw = 'Hộ chiếu'; soGtRaw = soHc; }
+        else if (soGtk) { lgtRaw = 'Thẻ BHYT'; soGtRaw = soGtk; }
+    }
+    setCell(wsTpl, tplRow, 5, mapGeneric(lgtRaw, lk.loaiGiayTo));
+    setCell(wsTpl, tplRow, 6, safeGet(srcRow, 'ten_giay_to') || '');
+    setCell(wsTpl, tplRow, 7, soGtRaw || '');
+    setCell(wsTpl, tplRow, 8, safeGet(srcRow, 'so_dt') || '');
+
+    const nctRaw = nfc(safeGet(srcRow, 'noi_cu_tru'));
+    setCell(wsTpl, tplRow, 9, mapGeneric(nctRaw, lk.noiCuTru));
+
+    const tinhRaw = safeGet(srcRow, 'tinh_tp');
+    const tinhCodeVal = getTinhCode(tinhRaw, lk);
+    setCell(wsTpl, tplRow, 10, mapTinh(tinhRaw, lk));
+
+    const pxRaw = safeGet(srcRow, 'phuong_xa');
+    setCell(wsTpl, tplRow, 11, mapPhuongXa(pxRaw, tinhCodeVal, lk));
+
+    setCell(wsTpl, tplRow, 12, safeGet(srcRow, 'dia_chi') || '');
+
+    const [ndStr, ndDt] = fixDate(safeGet(srcRow, 'ngay_den'));
+    setCell(wsTpl, tplRow, 13, ndStr || '');
+
+    const ndiRaw = safeGet(srcRow, 'ngay_di');
+    if (ndiRaw && String(ndiRaw).trim()) {
+        const [ndiStr] = fixDate(ndiRaw);
+        setCell(wsTpl, tplRow, 14, ndiStr || '');
+    } else if (ndDt) {
+        const ngayDi = new Date(ndDt);
+        ngayDi.setDate(ngayDi.getDate() + 7);
+        setCell(wsTpl, tplRow, 14, formatDate(ngayDi));
+    } else {
+        setCell(wsTpl, tplRow, 14, '');
+    }
+
+    let phongKhoaRaw = String(safeGet(srcRow, 'phong_khoa') || '').trim();
+    const pkNorm = nfc(phongKhoaRaw).toUpperCase();
+    if (pkNorm.includes('KHOA NGOẠI THẦN KINH') && pkNorm.includes('CHẤN THƯƠNG CHỈNH HÌNH')) {
+        phongKhoaRaw = 'NGOẠI TK - CTCH';
+    }
+    setCell(wsTpl, tplRow, 15, phongKhoaRaw);
+
+    const lydoRaw = nfc(safeGet(srcRow, 'ly_do'));
+    setCell(wsTpl, tplRow, 16, mapGeneric(lydoRaw, lk.lyDo));
 }
 
 function downloadPatientExcel(list, sheetName, filePrefix) {
@@ -2461,6 +2644,9 @@ function resetBca() {
     document.getElementById('btnDownloadBca').style.display = 'none';
     document.getElementById('btnDownloadBcaStill').style.display = 'none';
     document.getElementById('btnDownloadBcaNew').style.display = 'none';
+    if (document.getElementById('btnDownloadBcaNewSummary')) {
+        document.getElementById('btnDownloadBcaNewSummary').style.display = 'none';
+    }
     document.getElementById('bcaStillCard').style.display = 'none';
     document.getElementById('bcaTableCard').style.display = 'none';
     document.getElementById('bcaNewCard').style.display = 'none';
