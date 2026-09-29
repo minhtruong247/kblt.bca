@@ -3,35 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KBLT Converter - Chuyển đổi file lưu trú</title>
-    <meta name="description" content="Chuyển đổi tự động file danh sách lưu trú gốc sang đúng định dạng file mẫu KBLT. Chạy trực tiếp trên trình duyệt.">
+    <title>KBLT Converter Pro - Hệ thống chuyển đổi & đối soát lưu trú Bộ Công An</title>
+    <meta name="description" content="Chuyển đổi và đối soát tự động file danh sách lưu trú bệnh nhân từ HIS sang mẫu chuẩn Cổng Dịch vụ công Bộ Công An (KBLT). 100% xử lý an toàn trên trình duyệt.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="data/template_b64.js"></script>
     <style>
         :root {
-            --bg-primary: #0a0e1a;
-            --bg-secondary: #111827;
-            --bg-card: rgba(17, 24, 39, 0.7);
-            --bg-glass: rgba(255, 255, 255, 0.03);
+            --bg-primary: #070b14;
+            --bg-secondary: #0d1527;
+            --bg-card: rgba(13, 21, 39, 0.75);
+            --bg-card-hover: rgba(18, 29, 54, 0.85);
+            --bg-glass: rgba(255, 255, 255, 0.035);
+            --bg-glass-active: rgba(255, 255, 255, 0.07);
             --border-glass: rgba(255, 255, 255, 0.08);
-            --text-primary: #f1f5f9;
+            --border-glass-hover: rgba(255, 255, 255, 0.18);
+            --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
-            --accent-blue: #3b82f6;
+            --accent-blue: #38bdf8;
+            --accent-indigo: #6366f1;
             --accent-purple: #8b5cf6;
             --accent-emerald: #10b981;
             --accent-amber: #f59e0b;
             --accent-rose: #f43f5e;
             --accent-cyan: #06b6d4;
-            --gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            --gradient-success: linear-gradient(135deg, #10b981, #06b6d4);
-            --gradient-warm: linear-gradient(135deg, #f59e0b, #f43f5e);
-            --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
-            --radius: 16px;
-            --radius-sm: 10px;
+            --gradient-brand: linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #8b5cf6 100%);
+            --gradient-primary: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            --gradient-success: linear-gradient(135deg, #059669 0%, #10b981 50%, #06b6d4 100%);
+            --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #f43f5e 100%);
+            --gradient-danger: linear-gradient(135deg, #e11d48 0%, #ea580c 100%);
+            --shadow-glow-blue: 0 0 40px rgba(56, 189, 248, 0.2);
+            --shadow-glow-emerald: 0 0 40px rgba(16, 185, 129, 0.2);
+            --shadow-card: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            --radius-xl: 20px;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -42,76 +52,111 @@
             color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
+        /* Ambient background lighting */
         .bg-animation {
             position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 0; overflow: hidden;
+            pointer-events: none;
         }
 
         .bg-animation .orb {
             position: absolute; border-radius: 50%;
-            filter: blur(80px); opacity: 0.3;
-            animation: float 20s ease-in-out infinite;
+            filter: blur(100px); opacity: 0.25;
+            animation: float 22s ease-in-out infinite;
         }
 
         .bg-animation .orb:nth-child(1) {
-            width: 600px; height: 600px;
-            background: var(--accent-blue);
-            top: -200px; right: -100px;
+            width: 700px; height: 700px;
+            background: radial-gradient(circle, #2563eb, transparent 70%);
+            top: -250px; right: -150px;
         }
 
         .bg-animation .orb:nth-child(2) {
-            width: 400px; height: 400px;
-            background: var(--accent-purple);
-            bottom: -100px; left: -50px;
-            animation-delay: -7s;
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, #7c3aed, transparent 70%);
+            bottom: -150px; left: -100px;
+            animation-delay: -8s;
         }
 
         .bg-animation .orb:nth-child(3) {
-            width: 300px; height: 300px;
-            background: var(--accent-emerald);
-            top: 50%; left: 50%;
-            animation-delay: -14s;
+            width: 450px; height: 450px;
+            background: radial-gradient(circle, #059669, transparent 70%);
+            top: 45%; left: 45%;
+            animation-delay: -15s;
+            opacity: 0.18;
         }
 
         @keyframes float {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(50px, -30px) scale(1.05); }
-            50% { transform: translate(-30px, 50px) scale(0.95); }
-            75% { transform: translate(30px, 30px) scale(1.02); }
+            25% { transform: translate(40px, -30px) scale(1.05); }
+            50% { transform: translate(-30px, 40px) scale(0.95); }
+            75% { transform: translate(30px, 20px) scale(1.02); }
         }
 
         .container {
             position: relative; z-index: 1;
-            max-width: 960px; margin: 0 auto;
-            padding: 40px 24px 60px;
+            max-width: 1040px; margin: 0 auto;
+            padding: 32px 20px 80px;
         }
 
-        .header { text-align: center; margin-bottom: 48px; }
+        /* ===== Header Styling ===== */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #34d399;
+            letter-spacing: 0.3px;
+        }
 
         .header .badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 6px 16px;
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.2);
-            border-radius: 100px;
-            font-size: 12px; font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
             color: var(--accent-blue);
-            text-transform: uppercase; letter-spacing: 1px;
-            margin-bottom: 20px;
+            letter-spacing: 0.5px;
         }
 
         .header .badge .dot {
-            width: 6px; height: 6px;
+            width: 7px; height: 7px;
             background: var(--accent-emerald);
             border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-emerald);
             animation: pulse-dot 2s ease-in-out infinite;
         }
 
         .header .badge.loading-badge .dot {
             background: var(--accent-amber);
+            box-shadow: 0 0 8px var(--accent-amber);
         }
 
         .header .badge.error-badge {
@@ -121,531 +166,1032 @@
 
         .header .badge.error-badge .dot {
             background: var(--accent-rose);
+            box-shadow: 0 0 8px var(--accent-rose);
         }
 
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.8); }
+            50% { opacity: 0.4; transform: scale(0.75); }
         }
 
         .header h1 {
-            font-size: 42px; font-weight: 800;
-            background: var(--gradient-primary);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 38px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: var(--gradient-brand);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            line-height: 1.2; margin-bottom: 12px;
+            line-height: 1.2;
+            margin-bottom: 10px;
         }
 
         .header p {
-            font-size: 16px; color: var(--text-secondary);
-            max-width: 500px; margin: 0 auto; line-height: 1.6;
+            font-size: 15px;
+            color: var(--text-secondary);
+            max-width: 620px;
+            margin: 0 auto;
+            line-height: 1.6;
         }
 
+        /* ===== Quick Guide Accordion ===== */
+        .guide-banner {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.7));
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: var(--radius-lg);
+            margin-bottom: 28px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .guide-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            cursor: pointer;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.02);
+            transition: background 0.2s ease;
+        }
+
+        .guide-header:hover {
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .guide-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .guide-title .guide-icon {
+            font-size: 16px;
+        }
+
+        .guide-title .guide-badge {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .guide-chevron {
+            font-size: 11px;
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+
+        .guide-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            border-top: 1px solid transparent;
+        }
+
+        .guide-body.open {
+            max-height: 300px;
+            border-top-color: var(--border-glass);
+        }
+
+        .guide-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            padding: 20px;
+        }
+
+        .guide-step {
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            position: relative;
+        }
+
+        .guide-step .step-num {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        .guide-step h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .guide-step p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* ===== Tab Navigation (Floating Dock) ===== */
+        .tab-bar {
+            display: flex;
+            gap: 6px;
+            background: rgba(13, 21, 39, 0.7);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 6px;
+            margin-bottom: 28px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .tab-item {
+            flex: 1;
+            padding: 13px 18px;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .tab-item:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-item.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(79, 70, 229, 0.35));
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.25);
+        }
+
+        .tab-item .tab-icon {
+            font-size: 16px;
+        }
+
+        .tab-tag {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+        }
+
+        .tab-item.active .tab-tag {
+            background: rgba(56, 189, 248, 0.25);
+            color: #7dd3fc;
+        }
+
+        .tab-tag.best {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.35s ease;
+        }
+
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== Main Card System ===== */
         .card {
             background: var(--bg-card);
             backdrop-filter: blur(20px);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius);
-            padding: 32px; margin-bottom: 24px;
+            border-radius: var(--radius-xl);
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-card);
             transition: all 0.3s ease;
         }
 
-        .card:hover { border-color: rgba(255, 255, 255, 0.12); }
+        .card:hover {
+            border-color: var(--border-glass-hover);
+        }
+
+        .card-header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
 
         .card-title {
-            font-size: 14px; font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase; letter-spacing: 1px;
-            margin-bottom: 20px;
-            display: flex; align-items: center; gap: 8px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .card-title .icon { font-size: 18px; }
+        .card-title .icon-box {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: -12px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        /* ===== Modern Upload Zone Design ===== */
+        .upload-grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        .upload-grid.two-cols {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .upload-grid.three-cols {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .upload-card-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .upload-step-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            padding: 2px 8px;
+        }
+
+        .upload-step-pill .step-tag {
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .step-tag.required {
+            background: rgba(37, 99, 235, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(37, 99, 235, 0.4);
+        }
+
+        .step-tag.optional {
+            background: rgba(148, 163, 184, 0.15);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
 
         .upload-zone {
-            border: 2px dashed rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius-sm);
-            padding: 36px 24px; text-align: center;
-            cursor: pointer; transition: all 0.3s ease;
-            position: relative; overflow: hidden;
+            border: 2px dashed rgba(255, 255, 255, 0.12);
+            border-radius: var(--radius-lg);
+            padding: 28px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .upload-zone::before {
-            content: ''; position: absolute; inset: 0;
-            background: var(--bg-glass); transition: all 0.3s ease;
+        .upload-zone::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius-lg);
+            background: radial-gradient(circle at center, rgba(56, 189, 248, 0.08), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
         }
 
         .upload-zone:hover {
             border-color: var(--accent-blue);
-            background: rgba(59, 130, 246, 0.05);
+            background: rgba(56, 189, 248, 0.04);
+            transform: translateY(-2px);
+        }
+
+        .upload-zone:hover::after {
+            opacity: 1;
         }
 
         .upload-zone.dragover {
-            border-color: var(--accent-blue);
-            background: rgba(59, 130, 246, 0.08);
+            border-color: #38bdf8;
+            border-style: solid;
+            background: rgba(56, 189, 248, 0.1);
             transform: scale(1.02);
-            box-shadow: var(--shadow-glow);
+            box-shadow: var(--shadow-glow-blue);
         }
 
         .upload-zone.has-file {
-            border-color: var(--accent-emerald);
+            border-color: rgba(16, 185, 129, 0.6);
             border-style: solid;
             background: rgba(16, 185, 129, 0.05);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.12);
         }
 
-        .upload-zone .zone-content { position: relative; z-index: 1; }
-        .upload-zone .zone-icon { font-size: 40px; margin-bottom: 12px; display: block; }
-
-        .upload-zone .zone-label {
-            font-size: 15px; font-weight: 600;
-            color: var(--text-primary); margin-bottom: 6px;
+        .zone-content {
+            position: relative;
+            z-index: 1;
+            width: 100%;
         }
 
-        .upload-zone .zone-hint { font-size: 12px; color: var(--text-muted); }
-
-        .upload-zone .file-name {
-            display: none; font-size: 13px;
-            color: var(--accent-emerald); font-weight: 500;
-            margin-top: 8px; word-break: break-all;
+        .zone-icon-wrap {
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 24px;
+            transition: transform 0.3s ease;
         }
 
-        .upload-zone.has-file .file-name { display: block; }
+        .upload-zone:hover .zone-icon-wrap {
+            transform: scale(1.1);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .upload-zone.has-file .zone-icon-wrap {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+            color: #34d399;
+        }
+
+        .zone-label {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .zone-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            max-width: 90%;
+            margin: 0 auto;
+        }
+
+        .file-name {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #34d399;
+            font-weight: 600;
+            margin-top: 10px;
+            padding: 6px 14px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 9999px;
+            word-break: break-all;
+            max-width: 95%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .upload-zone.has-file .file-name {
+            display: inline-flex;
+        }
+
+        .upload-zone.has-file .zone-hint {
+            display: none;
+        }
 
         input[type="file"] { display: none; }
 
+        /* Settings row in Tab 1 */
         .settings-row {
-            display: flex; align-items: center; gap: 16px;
-            margin-top: 24px; padding: 16px 20px;
-            background: var(--bg-glass);
-            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 20px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: var(--radius-md);
             border: 1px solid var(--border-glass);
         }
 
         .settings-row label {
-            font-size: 14px; color: var(--text-secondary);
-            font-weight: 500; flex: 1;
+            font-size: 13.5px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            flex: 1;
         }
 
-        .settings-row label strong { color: var(--text-primary); }
+        .settings-row label strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
 
         .number-input {
-            display: flex; align-items: center; gap: 0;
+            display: flex;
+            align-items: center;
             background: var(--bg-secondary);
-            border-radius: 8px; overflow: hidden;
+            border-radius: 8px;
+            overflow: hidden;
             border: 1px solid var(--border-glass);
         }
 
         .number-input button {
-            width: 36px; height: 36px; border: none;
-            background: transparent; color: var(--text-primary);
-            font-size: 16px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: background 0.2s;
         }
 
         .number-input button:hover { background: rgba(255, 255, 255, 0.08); }
 
         .number-input input {
-            width: 48px; height: 36px; border: none;
-            background: transparent; color: var(--text-primary);
-            text-align: center; font-size: 15px;
-            font-weight: 600; font-family: 'Inter', sans-serif;
+            width: 48px; height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            text-align: center;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .number-input input:focus { outline: none; }
 
-        .submit-section { text-align: center; margin-top: 32px; }
+        /* ===== Submit & Action Section ===== */
+        .submit-section {
+            text-align: center;
+            margin: 28px 0 10px;
+        }
 
-        .btn-convert {
-            display: inline-flex; align-items: center; gap: 10px;
-            padding: 16px 48px;
+        .btn-action-main {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px 52px;
             background: var(--gradient-primary);
-            color: white; border: none; border-radius: 12px;
-            font-size: 16px; font-weight: 700;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer; transition: all 0.3s ease;
-            position: relative; overflow: hidden;
+            color: white;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 15.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35);
         }
 
-        .btn-convert::before {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-            opacity: 0; transition: opacity 0.3s;
+        .btn-action-main::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        .btn-convert:hover::before { opacity: 1; }
+        .btn-action-main:hover::before { opacity: 1; }
 
-        .btn-convert:hover {
+        .btn-action-main:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 12px 35px rgba(37, 99, 235, 0.5);
         }
 
-        .btn-convert:active { transform: translateY(0); }
+        .btn-action-main:active { transform: translateY(0); }
 
-        .btn-convert:disabled {
-            opacity: 0.5; cursor: not-allowed;
+        .btn-action-main:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
             transform: none !important;
             box-shadow: none !important;
         }
 
-        .btn-convert .spinner {
-            display: none; width: 20px; height: 20px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: white; border-radius: 50%;
+        .btn-convert {
+            background: var(--gradient-primary);
+        }
+
+        .btn-compare {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            box-shadow: 0 8px 25px rgba(124, 58, 237, 0.35);
+        }
+
+        .btn-compare:hover {
+            box-shadow: 0 12px 35px rgba(124, 58, 237, 0.5);
+        }
+
+        .btn-action-main .spinner,
+        .btn-compare .spinner {
+            display: none;
+            width: 22px; height: 22px;
+            border: 2.5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
 
-        .btn-convert.loading .spinner { display: block; }
-        .btn-convert.loading .btn-text { display: none; }
+        .btn-action-main.loading .spinner,
+        .btn-compare.loading .spinner { display: block; }
+        .btn-action-main.loading .btn-text,
+        .btn-compare.loading .btn-text { display: none; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .results { display: none; animation: slideUp 0.5s ease; }
-        .results.show { display: block; }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .success-banner {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.1));
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            border-radius: var(--radius);
-            padding: 28px 32px; text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .success-banner .check-icon {
-            width: 56px; height: 56px;
-            background: var(--gradient-success);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 16px; font-size: 28px;
-            animation: scaleIn 0.5s ease;
-        }
-
-        @keyframes scaleIn {
-            from { transform: scale(0); }
-            50% { transform: scale(1.2); }
-            to { transform: scale(1); }
-        }
-
-        .success-banner h3 {
-            font-size: 20px; font-weight: 700;
-            color: var(--accent-emerald); margin-bottom: 6px;
-        }
-
-        .success-banner p { font-size: 14px; color: var(--text-secondary); }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px; margin-bottom: 24px;
-        }
-
-        .stat-card {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
-            padding: 20px 16px; text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.12);
-        }
-
-        .stat-card .stat-value {
-            font-size: 28px; font-weight: 800;
-            margin-bottom: 4px; line-height: 1;
-        }
-
-        .stat-card .stat-label {
-            font-size: 11px; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            font-weight: 500;
-        }
-
-        .stat-card:nth-child(1) .stat-value { color: var(--accent-blue); }
-        .stat-card:nth-child(2) .stat-value { color: var(--accent-purple); }
-        .stat-card:nth-child(3) .stat-value { color: var(--accent-emerald); }
-        .stat-card:nth-child(4) .stat-value { color: var(--accent-amber); }
-        .stat-card:nth-child(5) .stat-value { color: var(--accent-cyan); }
-        .stat-card:nth-child(6) .stat-value { color: var(--accent-rose); }
-
-        .btn-download {
-            display: inline-flex; align-items: center; gap: 10px;
-            padding: 14px 40px;
-            background: var(--gradient-success);
-            color: white; border: none; border-radius: 12px;
-            font-size: 15px; font-weight: 700;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer; transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn-download:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
-        }
-
-        .btn-reset {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 14px 32px;
-            background: transparent; color: var(--text-secondary);
-            border: 1px solid var(--border-glass);
-            border-radius: 12px; font-size: 14px; font-weight: 600;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer; transition: all 0.3s ease;
-            margin-left: 12px;
-        }
-
-        .btn-reset:hover {
-            border-color: var(--text-muted);
-            color: var(--text-primary);
-        }
-
+        /* ===== Error Banner ===== */
         .error-banner {
             display: none;
             background: rgba(244, 63, 94, 0.1);
-            border: 1px solid rgba(244, 63, 94, 0.2);
-            border-radius: var(--radius-sm);
-            padding: 16px 20px; margin-top: 16px;
-            color: var(--accent-rose); font-size: 14px;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            margin: 18px auto 0;
+            max-width: 600px;
+            color: #fb7185;
+            font-size: 13.5px;
+            text-align: left;
             animation: slideUp 0.3s ease;
         }
 
         .error-banner.show { display: block; }
 
-        .mapping-detail { margin-top: 16px; }
+        /* ===== Results Dashboard ===== */
+        .results, .discharge-results {
+            display: none;
+            animation: slideUp 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: 36px;
+        }
+
+        .results.show, .discharge-results.show { display: block; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-banner, .discharge-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08));
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: var(--radius-xl);
+            padding: 26px 30px;
+            text-align: center;
+            margin-bottom: 24px;
+            box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .discharge-banner {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.12));
+            border-color: rgba(99, 102, 241, 0.25);
+        }
+
+        .success-banner .check-icon, .discharge-banner .check-icon {
+            width: 52px; height: 52px;
+            background: var(--gradient-success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+            font-size: 26px;
+            color: white;
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+            animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .discharge-banner .check-icon {
+            background: var(--gradient-primary);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .success-banner h3, .discharge-banner h3 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .success-banner p, .discharge-banner p {
+            font-size: 14.5px;
+            color: var(--text-secondary);
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        /* ===== Stat Cards Grid ===== */
+        .stats-grid, .discharge-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: rgba(13, 21, 39, 0.6);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 18px 14px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(18, 29, 54, 0.7);
+        }
+
+        .stat-card .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            line-height: 1;
+        }
+
+        .stat-card .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        /* Color accents for cards */
+        .stat-card:nth-child(1)::before { background: var(--accent-blue); }
+        .stat-card:nth-child(1) .stat-value { color: var(--accent-blue); }
+
+        .stat-card:nth-child(2)::before { background: var(--accent-purple); }
+        .stat-card:nth-child(2) .stat-value { color: var(--accent-purple); }
+
+        .stat-card:nth-child(3)::before { background: var(--accent-emerald); }
+        .stat-card:nth-child(3) .stat-value { color: var(--accent-emerald); }
+
+        .stat-card:nth-child(4)::before { background: var(--accent-rose); }
+        .stat-card:nth-child(4) .stat-value { color: var(--accent-rose); }
+
+        .stat-card:nth-child(5)::before { background: #38bdf8; }
+        .stat-card:nth-child(5) .stat-value { color: #38bdf8; }
+
+        .stat-card:nth-child(6)::before { background: var(--accent-amber); }
+        .stat-card:nth-child(6) .stat-value { color: var(--accent-amber); }
+
+        /* Mapping breakdown in Tab 1 */
+        .mapping-detail {
+            margin-top: 18px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border-glass);
+        }
 
         .mapping-item {
-            display: flex; justify-content: space-between;
-            align-items: center; padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 11px 18px;
             border-bottom: 1px solid var(--border-glass);
             font-size: 13px;
         }
 
         .mapping-item:last-child { border-bottom: none; }
         .mapping-item .map-label { color: var(--text-secondary); }
-        .mapping-item .map-value { font-weight: 600; color: var(--accent-emerald); }
+        .mapping-item .map-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--accent-emerald);
+        }
         .mapping-item .map-value.zero { color: var(--text-muted); }
 
-        @media (max-width: 640px) {
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .header h1 { font-size: 28px; }
-            .card { padding: 20px; }
-            .discharge-upload-grid { grid-template-columns: 1fr; }
-            .discharge-upload-grid.three-cols { grid-template-columns: 1fr; }
-            .discharge-stats-grid { grid-template-columns: 1fr 1fr; }
+        /* ===== DOWNLOAD ACTION HUB (Centerpiece) ===== */
+        .download-hub {
+            margin-top: 24px;
         }
 
-        /* ===== Tab Navigation ===== */
-        .tab-bar {
-            display: flex; gap: 4px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-glass);
-            border-radius: 14px; padding: 4px;
-            margin-bottom: 32px;
-            backdrop-filter: blur(12px);
-        }
-
-        .tab-item {
-            flex: 1; padding: 12px 20px;
-            background: transparent; border: none;
-            border-radius: 10px; cursor: pointer;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px; font-weight: 600;
-            color: var(--text-muted);
-            display: flex; align-items: center;
-            justify-content: center; gap: 8px;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .tab-item:hover {
-            color: var(--text-secondary);
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .tab-item.active {
-            color: var(--text-primary);
-            background: rgba(59, 130, 246, 0.12);
-            box-shadow: 0 2px 12px rgba(59, 130, 246, 0.15);
-        }
-
-        .tab-item .tab-icon { font-size: 16px; }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.4s ease;
-        }
-
-        .tab-content.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ===== Discharge Checker ===== */
-        .discharge-upload-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px; margin-bottom: 24px;
-        }
-
-        .discharge-upload-grid.three-cols {
-            grid-template-columns: 1fr 1fr 1fr;
-        }
-
-        .discharge-upload-grid .upload-zone {
-            padding: 28px 16px;
-        }
-
-        .discharge-upload-grid .zone-icon { font-size: 32px; }
-
-        .discharge-upload-grid .zone-label { font-size: 14px; }
-
-        .discharge-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px; margin-bottom: 24px;
-        }
-
-        .discharge-table-wrap {
-            overflow-x: auto;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border-glass);
-            margin-bottom: 24px;
-        }
-
-        .discharge-table {
-            width: 100%; border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .discharge-table thead {
-            background: rgba(59, 130, 246, 0.08);
-        }
-
-        .discharge-table th {
-            padding: 12px 14px;
-            text-align: left; font-weight: 600;
-            color: var(--text-secondary);
-            font-size: 11px;
+        .download-hub-title {
+            text-align: center;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid var(--border-glass);
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .download-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .btn-download-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: left;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-download-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px -8px rgba(0, 0, 0, 0.6);
+        }
+
+        .btn-download-card .btn-main-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-download-card .btn-text-group {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .btn-download-card .btn-main-label {
+            display: block;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 2px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .discharge-table td {
-            padding: 10px 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            color: var(--text-primary);
+        .btn-download-card .btn-sub-label {
+            display: block;
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .discharge-table tbody tr {
-            transition: background 0.2s;
+        .btn-download-card .btn-count-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
         }
 
-        .discharge-table tbody tr:hover {
-            background: rgba(59, 130, 246, 0.05);
+        /* Specific card variants */
+        .btn-download-card.primary-bca {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(79, 70, 229, 0.25));
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.2);
         }
 
-        .discharge-table tbody tr:last-child td {
-            border-bottom: none;
+        .btn-download-card.primary-bca:hover {
+            border-color: rgba(56, 189, 248, 0.8);
+            box-shadow: 0 12px 35px rgba(37, 99, 235, 0.4);
         }
 
-        .discharge-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 3px 10px;
-            background: rgba(244, 63, 94, 0.1);
-            border: 1px solid rgba(244, 63, 94, 0.2);
-            border-radius: 100px;
-            font-size: 11px; font-weight: 600;
-            color: var(--accent-rose);
+        .btn-download-card.primary-bca .btn-main-icon {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
 
-        .btn-compare {
-            display: inline-flex; align-items: center; gap: 10px;
-            padding: 16px 48px;
-            background: linear-gradient(135deg, #f59e0b, #f43f5e);
-            color: white; border: none; border-radius: 12px;
-            font-size: 16px; font-weight: 700;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer; transition: all 0.3s ease;
-            position: relative; overflow: hidden;
+        .btn-download-card.primary-bca .btn-count-pill {
+            background: var(--gradient-primary);
+            color: white;
         }
 
-        .btn-compare::before {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-            opacity: 0; transition: opacity 0.3s;
+        .btn-download-card.success-still {
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(13, 148, 136, 0.15));
+            border-color: rgba(16, 185, 129, 0.35);
         }
 
-        .btn-compare:hover::before { opacity: 1; }
+        .btn-download-card.success-still:hover {
+            border-color: rgba(16, 185, 129, 0.7);
+            box-shadow: 0 12px 35px rgba(16, 185, 129, 0.3);
+        }
 
-        .btn-compare:hover {
+        .btn-download-card.success-still .btn-main-icon {
+            background: var(--gradient-success);
+            color: white;
+        }
+
+        .btn-download-card.success-still .btn-count-pill {
+            background: rgba(16, 185, 129, 0.25);
+            color: #34d399;
+        }
+
+        .btn-download-card.danger-discharged {
+            background: linear-gradient(135deg, rgba(225, 29, 72, 0.15), rgba(234, 88, 12, 0.15));
+            border-color: rgba(244, 63, 94, 0.35);
+        }
+
+        .btn-download-card.danger-discharged:hover {
+            border-color: rgba(244, 63, 94, 0.7);
+            box-shadow: 0 12px 35px rgba(244, 63, 94, 0.3);
+        }
+
+        .btn-download-card.danger-discharged .btn-main-icon {
+            background: var(--gradient-danger);
+            color: white;
+        }
+
+        .btn-download-card.danger-discharged .btn-count-pill {
+            background: rgba(244, 63, 94, 0.25);
+            color: #fb7185;
+        }
+
+        .btn-download-card.slate-summary {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-download-card.slate-summary:hover {
+            border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-download-card.slate-summary .btn-main-icon {
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+        }
+
+        .btn-download-card.slate-summary .btn-count-pill {
+            background: rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+        }
+
+        /* Generic Download Button (for Tab 1) */
+        .btn-download-single {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 40px;
+            background: var(--gradient-success);
+            color: white;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-download-single:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(245, 158, 11, 0.4);
+            box-shadow: 0 12px 35px rgba(16, 185, 129, 0.5);
         }
 
-        .btn-compare:active { transform: translateY(0); }
-
-        .btn-compare:disabled {
-            opacity: 0.5; cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
+        .btn-reset {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
         }
 
-        .btn-compare .spinner {
-            display: none; width: 20px; height: 20px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: white; border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+        .btn-reset:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.06);
         }
-
-        .btn-compare.loading .spinner { display: block; }
-        .btn-compare.loading .btn-text { display: none; }
-
-        .discharge-results { display: none; animation: slideUp 0.5s ease; }
-        .discharge-results.show { display: block; }
-
-        .discharge-banner {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(244, 63, 94, 0.1));
-            border: 1px solid rgba(245, 158, 11, 0.2);
-            border-radius: var(--radius);
-            padding: 28px 32px; text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .discharge-banner .check-icon {
-            width: 56px; height: 56px;
-            background: var(--gradient-warm);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 16px; font-size: 28px;
-            animation: scaleIn 0.5s ease;
-        }
-
-        .discharge-banner h3 {
-            font-size: 20px; font-weight: 700;
-            color: var(--accent-amber); margin-bottom: 6px;
-        }
-
-        .discharge-banner p { font-size: 14px; color: var(--text-secondary); }
 
         .no-discharge {
-            text-align: center; padding: 40px 20px;
-            color: var(--text-muted); font-size: 14px;
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--text-secondary);
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: var(--radius-md);
+            margin-bottom: 20px;
         }
 
-        .no-discharge .nd-icon { font-size: 48px; margin-bottom: 12px; display: block; }
+        .no-discharge .nd-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* ===== Responsive Breakpoints ===== */
+        @media (max-width: 860px) {
+            .upload-grid.three-cols { grid-template-columns: 1fr; }
+            .upload-grid.two-cols { grid-template-columns: 1fr; }
+            .guide-steps { grid-template-columns: 1fr; }
+            .download-actions-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 30px; }
+            .card { padding: 22px; }
+            .tab-item { padding: 10px 12px; font-size: 12.5px; }
+            .tab-tag { display: none; }
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 20px 14px 60px; }
+            .stats-grid, .discharge-stats-grid { grid-template-columns: 1fr 1fr; }
+            .btn-action-main { width: 100%; padding: 15px 20px; }
+        }
     </style>
 </head>
 <body>
@@ -656,156 +1202,226 @@
     </div>
 
     <div class="container">
-        <div class="header">
-            <div class="badge loading-badge" id="statusBadge">
-                <span class="dot"></span>
-                <span id="statusText">Đang tải dữ liệu mẫu...</span>
+        <!-- Top Branding Header -->
+        <header class="header">
+            <div class="header-meta">
+                <div class="security-badge">
+                    <span>🔒</span> 100% Xử lý offline trên trình duyệt • Bảo mật dữ liệu y tế
+                </div>
+                <div class="badge loading-badge" id="statusBadge">
+                    <span class="dot"></span>
+                    <span id="statusText">Đang tải dữ liệu mẫu...</span>
+                </div>
             </div>
-            <h1>KBLT Converter</h1>
-            <p>Chuyển đổi tự động file danh sách lưu trú gốc sang đúng định dạng file mẫu KBLT</p>
+            <h1>KBLT Converter Pro</h1>
+            <p>Hệ thống tự động chuyển đổi file HIS sang mẫu Cổng Dịch vụ công Bộ Công An & đối soát dữ liệu bệnh nhân lưu trú.</p>
+        </header>
+
+        <!-- Collapsible Quick Guide -->
+        <div class="guide-banner" id="guideBanner">
+            <div class="guide-header" onclick="toggleGuide()">
+                <div class="guide-title">
+                    <span class="guide-icon">💡</span>
+                    <span>Quy trình 3 bước xử lý nhanh chuẩn Bộ Công An</span>
+                    <span class="guide-badge">Hướng dẫn cán bộ</span>
+                </div>
+                <span class="guide-chevron" id="guideChevron">▼</span>
+            </div>
+            <div class="guide-body" id="guideBody">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="step-num">1</div>
+                        <h4>Tải file từ HIS bệnh viện</h4>
+                        <p>Xuất báo cáo danh sách bệnh nhân lưu trú đang điều trị từ phần mềm HIS (dạng tệp .xlsx).</p>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-num">2</div>
+                        <h4>Vào Tab "So sánh BCA"</h4>
+                        <p>Thả file HIS vừa tải + File danh sách khách đang tạm trú tải từ Cổng lưu trú Bộ Công An.</p>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-num">3</div>
+                        <h4>Tải & Nạp file kết quả</h4>
+                        <p>Tải file <strong>"BN Mới Nạp BCA"</strong> (file mẫu chuẩn 100%) để nạp thẳng lên hệ thống không lỗi, đồng thời tải DS ra viện để theo dõi.</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="tab-bar">
-            <button type="button" class="tab-item active" onclick="switchTab('converter')">
+        <!-- Tab Segmented Dock -->
+        <nav class="tab-bar">
+            <button type="button" class="tab-item active" data-tab="converter" onclick="switchTab('converter', this)">
                 <span class="tab-icon">⚡</span> Chuyển đổi KBLT
+                <span class="tab-tag">File đơn</span>
             </button>
-            <button type="button" class="tab-item" onclick="switchTab('discharge')">
+            <button type="button" class="tab-item" data-tab="discharge" onclick="switchTab('discharge', this)">
                 <span class="tab-icon">🔍</span> Kiểm tra ra viện
+                <span class="tab-tag">Hôm qua - Hôm nay</span>
             </button>
-            <button type="button" class="tab-item" onclick="switchTab('bca')">
+            <button type="button" class="tab-item" data-tab="bca" onclick="switchTab('bca', this)">
                 <span class="tab-icon">🏥</span> So sánh BCA
+                <span class="tab-tag best">Khuyên dùng ⭐</span>
             </button>
-        </div>
+        </nav>
 
+        <!-- ==================== TAB 1: CHUYỂN ĐỔI KBLT ==================== -->
         <div class="tab-content active" id="tab-converter">
-
-        <form id="convertForm">
-            <div class="card">
-                <div class="card-title">
-                    <span class="icon">📁</span>
-                    Tải file lên
-                </div>
-
-                <div class="upload-zone" id="sourceZone" onclick="document.getElementById('sourceFile').click()">
-                    <div class="zone-content">
-                        <span class="zone-icon">📄</span>
-                        <div class="zone-label">Tải File Gốc Cần Chuyển Đổi</div>
-                        <div class="zone-hint">Kéo thả hoặc click để chọn (.xlsx) — Xử lý ngay trên trình duyệt, không upload lên server</div>
-                        <div class="file-name" id="sourceFileName"></div>
+            <form id="convertForm">
+                <div class="card">
+                    <div class="card-header-bar">
+                        <div class="card-title">
+                            <span class="icon-box">📁</span>
+                            Tải file HIS cần chuyển đổi
+                        </div>
+                        <span class="step-tag required">Bắt buộc</span>
                     </div>
-                    <input type="file" id="sourceFile" accept=".xlsx,.xls">
-                </div>
+                    <div class="card-subtitle">
+                        Chuyển đổi trực tiếp 1 file danh sách bệnh nhân lưu trú sang file mẫu Excel chuẩn KBLT Bộ Công An.
+                    </div>
 
-                <div class="settings-row">
-                    <label>
-                        <strong>Ngày đi dự kiến</strong> — Nếu thiếu, tự thêm = Ngày đến +
-                    </label>
-                    <div class="number-input">
-                        <button type="button" onclick="changeExtraDays(-1)">−</button>
-                        <input type="number" id="extraDays" value="7" min="0" max="30">
-                        <button type="button" onclick="changeExtraDays(1)">+</button>
+                    <div class="upload-zone" id="sourceZone" onclick="document.getElementById('sourceFile').click()">
+                        <div class="zone-content">
+                            <div class="zone-icon-wrap">📄</div>
+                            <div class="zone-label">Chọn hoặc Kéo thả File Gốc HIS (.xlsx)</div>
+                            <div class="zone-hint">File xuất từ phần mềm bệnh viện (rptDS_LUUTRU...xlsx). Xử lý an toàn trên máy, không gửi ra ngoài.</div>
+                            <div class="file-name" id="sourceFileName"></div>
+                        </div>
+                        <input type="file" id="sourceFile" accept=".xlsx,.xls">
                     </div>
-                    <span style="font-size: 14px; color: var(--text-secondary);">ngày</span>
-                </div>
-            </div>
 
-            <div class="submit-section">
-                <button type="submit" class="btn-convert" id="btnConvert" disabled>
-                    <div class="spinner"></div>
-                    <span class="btn-text">⚡ Chuyển đổi ngay</span>
-                </button>
-                <div class="error-banner" id="errorBanner"></div>
-            </div>
-        </form>
-
-        <div class="results" id="results">
-            <div class="success-banner">
-                <div class="check-icon">✓</div>
-                <h3>Chuyển đổi thành công!</h3>
-                <p id="resultSummary"></p>
-            </div>
-
-            <div class="card" id="statsCard" style="display: none;">
-                <div class="card-title">
-                    <span class="icon">📊</span>
-                    Thống kê chi tiết
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="statTotal">0</div>
-                        <div class="stat-label">Tổng dòng</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="statGender">0</div>
-                        <div class="stat-label">Giới tính</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="statDocType">0</div>
-                        <div class="stat-label">Loại giấy tờ</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="statDate">0</div>
-                        <div class="stat-label">Sửa ngày</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="statDeparture">0</div>
-                        <div class="stat-label">Thêm ngày đi</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="statProvince">0</div>
-                        <div class="stat-label">Tỉnh/TP</div>
+                    <div class="settings-row">
+                        <label>
+                            <strong>Ngày đi dự kiến</strong> — Nếu dòng thiếu ngày đi, tự động gán = Ngày đến +
+                        </label>
+                        <div class="number-input">
+                            <button type="button" onclick="changeExtraDays(-1)">−</button>
+                            <input type="number" id="extraDays" value="7" min="0" max="30">
+                            <button type="button" onclick="changeExtraDays(1)">+</button>
+                        </div>
+                        <span style="font-size: 13.5px; color: var(--text-secondary); font-weight: 500;">ngày</span>
                     </div>
                 </div>
 
-                <div class="mapping-detail" id="mappingDetail"></div>
-            </div>
+                <div class="submit-section">
+                    <button type="submit" class="btn-action-main btn-convert" id="btnConvert" disabled>
+                        <div class="spinner"></div>
+                        <span class="btn-text">⚡ Chuyển đổi sang mẫu KBLT ngay</span>
+                    </button>
+                    <div class="error-banner" id="errorBanner"></div>
+                </div>
+            </form>
 
-            <div style="text-align: center; margin-top: 8px;">
-                <button type="button" class="btn-download" id="btnDownload" style="display: none;">
-                    📥 Tải file kết quả về
-                </button>
-                <button type="button" class="btn-reset" onclick="resetForm()">
-                    🔄 Làm mới
-                </button>
+            <div class="results" id="results">
+                <div class="success-banner">
+                    <div class="check-icon">✓</div>
+                    <h3>Chuyển đổi thành công!</h3>
+                    <p id="resultSummary"></p>
+                </div>
+
+                <div class="card" id="statsCard" style="display: none;">
+                    <div class="card-header-bar">
+                        <div class="card-title">
+                            <span class="icon-box">📊</span>
+                            Thống kê dữ liệu chuẩn hóa
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statTotal">0</div>
+                            <div class="stat-label">Tổng bệnh nhân</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statGender">0</div>
+                            <div class="stat-label">Mã hóa giới tính</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statDocType">0</div>
+                            <div class="stat-label">Loại giấy tờ</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statDate">0</div>
+                            <div class="stat-label">Chuẩn hóa ngày</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statDeparture">0</div>
+                            <div class="stat-label">Thêm ngày đi</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statProvince">0</div>
+                            <div class="stat-label">Mã hóa Tỉnh/TP</div>
+                        </div>
+                    </div>
+
+                    <div class="mapping-detail" id="mappingDetail"></div>
+                </div>
+
+                <div class="download-hub">
+                    <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 10px;">
+                        <button type="button" class="btn-download-single" id="btnDownload" style="display: none;">
+                            📥 Tải file KBLT kết quả (.xlsx)
+                        </button>
+                        <button type="button" class="btn-reset" onclick="resetForm()">
+                            🔄 Làm mới
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
         </div><!-- end tab-converter -->
 
+        <!-- ==================== TAB 2: KIỂM TRA RA VIỆN ==================== -->
         <div class="tab-content" id="tab-discharge">
             <div class="card">
-                <div class="card-title">
-                    <span class="icon">🔍</span>
-                    So sánh file gốc
+                <div class="card-header-bar">
+                    <div class="card-title">
+                        <span class="icon-box">🔍</span>
+                        So sánh 2 ngày liên tiếp (Hôm qua ↔ Hôm nay)
+                    </div>
+                    <span class="step-tag required">2 File</span>
+                </div>
+                <div class="card-subtitle">
+                    Phát hiện các bệnh nhân có trong file hôm qua nhưng không còn trong file hôm nay (đã xuất viện).
                 </div>
 
-                <div class="discharge-upload-grid">
-                    <div class="upload-zone" id="yesterdayZone" onclick="document.getElementById('yesterdayFile').click()">
-                        <div class="zone-content">
-                            <span class="zone-icon">📅</span>
-                            <div class="zone-label">File gốc HÔM QUA</div>
-                            <div class="zone-hint">Kéo thả hoặc click (.xlsx)</div>
-                            <div class="file-name" id="yesterdayFileName"></div>
+                <div class="upload-grid two-cols">
+                    <div class="upload-card-wrapper">
+                        <div class="upload-step-pill">
+                            <span>1. File hôm trước</span>
+                            <span class="step-tag required">Bắt buộc</span>
                         </div>
-                        <input type="file" id="yesterdayFile" accept=".xlsx,.xls">
+                        <div class="upload-zone" id="yesterdayZone" onclick="document.getElementById('yesterdayFile').click()">
+                            <div class="zone-content">
+                                <div class="zone-icon-wrap">📅</div>
+                                <div class="zone-label">File gốc HÔM QUA</div>
+                                <div class="zone-hint">Kéo thả hoặc click chọn (.xlsx)</div>
+                                <div class="file-name" id="yesterdayFileName"></div>
+                            </div>
+                            <input type="file" id="yesterdayFile" accept=".xlsx,.xls">
+                        </div>
                     </div>
 
-                    <div class="upload-zone" id="todayZone" onclick="document.getElementById('todayFile').click()">
-                        <div class="zone-content">
-                            <span class="zone-icon">📄</span>
-                            <div class="zone-label">File gốc HÔM NAY</div>
-                            <div class="zone-hint">Kéo thả hoặc click (.xlsx)</div>
-                            <div class="file-name" id="todayFileName"></div>
+                    <div class="upload-card-wrapper">
+                        <div class="upload-step-pill">
+                            <span>2. File hôm nay</span>
+                            <span class="step-tag required">Bắt buộc</span>
                         </div>
-                        <input type="file" id="todayFile" accept=".xlsx,.xls">
+                        <div class="upload-zone" id="todayZone" onclick="document.getElementById('todayFile').click()">
+                            <div class="zone-content">
+                                <div class="zone-icon-wrap">📄</div>
+                                <div class="zone-label">File gốc HÔM NAY</div>
+                                <div class="zone-hint">Kéo thả hoặc click chọn (.xlsx)</div>
+                                <div class="file-name" id="todayFileName"></div>
+                            </div>
+                            <input type="file" id="todayFile" accept=".xlsx,.xls">
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="submit-section">
-                <button type="button" class="btn-compare" id="btnCompare" disabled onclick="runComparison()">
+                <button type="button" class="btn-action-main btn-compare" id="btnCompare" disabled onclick="runComparison()">
                     <div class="spinner"></div>
-                    <span class="btn-text">🔍 So sánh ngay</span>
+                    <span class="btn-text">🔍 So sánh tìm bệnh nhân ra viện</span>
                 </button>
                 <div class="error-banner" id="errorBannerDischarge"></div>
             </div>
@@ -813,7 +1429,7 @@
             <div class="discharge-results" id="dischargeResults">
                 <div class="discharge-banner">
                     <div class="check-icon">🏥</div>
-                    <h3>Kết quả so sánh</h3>
+                    <h3>Kết quả kiểm tra ra viện</h3>
                     <p id="dischargeSummary"></p>
                 </div>
 
@@ -832,70 +1448,106 @@
                     </div>
                 </div>
 
-                <div id="noDischargeMsg" class="no-discharge" style="display: none; margin-top: 16px;">
+                <div id="noDischargeMsg" class="no-discharge" style="display: none;">
                     <span class="nd-icon">✅</span>
                     <strong>Không có bệnh nhân nào ra viện</strong>
-                    <p style="margin-top: 6px;">Tất cả bệnh nhân hôm qua vẫn có trong danh sách hôm nay.</p>
+                    <p style="margin-top: 6px;">Tất cả bệnh nhân hôm qua vẫn có mặt trong danh sách hôm nay.</p>
                 </div>
 
-                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
-                    <button type="button" class="btn-download" id="btnDownloadDischarge" style="display: none; background: #ef4444;">
-                        📥 Tải danh sách ra viện (.xlsx)
-                    </button>
-                    <button type="button" class="btn-reset" onclick="resetDischarge()">
-                        🔄 Làm mới
-                    </button>
+                <div class="download-hub">
+                    <div class="download-actions-grid" style="max-width: 700px; margin: 0 auto 20px;">
+                        <button type="button" class="btn-download-card danger-discharged" id="btnDownloadDischarge" style="display: none;">
+                            <span class="btn-main-icon">🚪</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải Danh Sách Ra Viện (.xlsx)</span>
+                                <span class="btn-sub-label">Danh sách bệnh nhân đã xuất viện</span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <button type="button" class="btn-reset" onclick="resetDischarge()">
+                            🔄 Làm mới
+                        </button>
+                    </div>
                 </div>
             </div>
         </div><!-- end tab-discharge -->
 
+        <!-- ==================== TAB 3: SO SÁNH BCA ĐA CHIỀU ==================== -->
         <div class="tab-content" id="tab-bca">
             <div class="card">
-                <div class="card-title">
-                    <span class="icon">🏥</span>
-                    So sánh đa chiều: HIS ↔ BCA ↔ KBLT
+                <div class="card-header-bar">
+                    <div class="card-title">
+                        <span class="icon-box">🏥</span>
+                        So sánh đa chiều: HIS ↔ BCA ↔ KBLT
+                    </div>
+                    <span class="step-tag required" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">
+                        Khuyên dùng
+                    </span>
                 </div>
-                <p style="color: var(--text-dim); font-size: 13px; margin: -8px 0 16px 0;">
-                    Tải lên 2 hoặc 3 file để so sánh. File HIS (bắt buộc) + BCA hoặc KBLT.
-                </p>
+                <div class="card-subtitle">
+                    Tự động tách riêng 3 nhóm: <strong>BN Mới cần nạp</strong> (xuất theo mẫu chuẩn BCA import ngay), <strong>BN Đang nằm viện</strong> và <strong>BN Đã ra viện</strong>.
+                </div>
 
-                <div class="discharge-upload-grid three-cols">
-                    <div class="upload-zone" id="hisZone" onclick="document.getElementById('hisFile').click()">
-                        <div class="zone-content">
-                            <span class="zone-icon">🏥</span>
-                            <div class="zone-label">File HIS / KBLT (bắt buộc)</div>
-                            <div class="zone-hint">File KBLT đã chuyển đổi hoặc File HIS (rptDS_LUUTRU...xlsx)</div>
-                            <div class="file-name" id="hisFileName"></div>
+                <div class="upload-grid three-cols">
+                    <!-- File 1: HIS -->
+                    <div class="upload-card-wrapper">
+                        <div class="upload-step-pill">
+                            <span>1. File HIS Hiện Tại</span>
+                            <span class="step-tag required">Bắt buộc</span>
                         </div>
-                        <input type="file" id="hisFile" accept=".xlsx,.xls">
+                        <div class="upload-zone" id="hisZone" onclick="document.getElementById('hisFile').click()">
+                            <div class="zone-content">
+                                <div class="zone-icon-wrap" style="color: #60a5fa;">🏥</div>
+                                <div class="zone-label">File HIS / KBLT Hôm Nay</div>
+                                <div class="zone-hint">File xuất từ HIS bệnh viện (rptDS_LUUTRU...xlsx) hoặc file KBLT đã chuyển đổi</div>
+                                <div class="file-name" id="hisFileName"></div>
+                            </div>
+                            <input type="file" id="hisFile" accept=".xlsx,.xls">
+                        </div>
                     </div>
 
-                    <div class="upload-zone" id="bcaZone" onclick="document.getElementById('bcaFile').click()">
-                        <div class="zone-content">
-                            <span class="zone-icon">🌐</span>
-                            <div class="zone-label">File BCA (tùy chọn)</div>
-                            <div class="zone-hint">File tải từ web lưu trú BCA (danh-sach-khach-VN...xlsx)</div>
-                            <div class="file-name" id="bcaFileName"></div>
+                    <!-- File 2: BCA -->
+                    <div class="upload-card-wrapper">
+                        <div class="upload-step-pill">
+                            <span>2. File Cổng BCA</span>
+                            <span class="step-tag optional">Tùy chọn</span>
                         </div>
-                        <input type="file" id="bcaFile" accept=".xlsx,.xls">
+                        <div class="upload-zone" id="bcaZone" onclick="document.getElementById('bcaFile').click()">
+                            <div class="zone-content">
+                                <div class="zone-icon-wrap" style="color: #34d399;">🌐</div>
+                                <div class="zone-label">File Đang Tạm Trú BCA</div>
+                                <div class="zone-hint">Tải từ web Quản lý lưu trú Bộ Công An (danh-sach-khach-VN...xlsx)</div>
+                                <div class="file-name" id="bcaFileName"></div>
+                            </div>
+                            <input type="file" id="bcaFile" accept=".xlsx,.xls">
+                        </div>
                     </div>
 
-                    <div class="upload-zone" id="resultZone" onclick="document.getElementById('resultFile').click()">
-                        <div class="zone-content">
-                            <span class="zone-icon">📄</span>
-                            <div class="zone-label">File KBLT hôm trước / File kết quả (tùy chọn)</div>
-                            <div class="zone-hint">File KBLT hôm qua/trước đó (để so sánh BN đã ra viện)</div>
-                            <div class="file-name" id="resultFileName"></div>
+                    <!-- File 3: KBLT cũ -->
+                    <div class="upload-card-wrapper">
+                        <div class="upload-step-pill">
+                            <span>3. File KBLT Trước Đó</span>
+                            <span class="step-tag optional">Tùy chọn</span>
                         </div>
-                        <input type="file" id="resultFile" accept=".xlsx,.xls">
+                        <div class="upload-zone" id="resultZone" onclick="document.getElementById('resultFile').click()">
+                            <div class="zone-content">
+                                <div class="zone-icon-wrap" style="color: #c084fc;">📄</div>
+                                <div class="zone-label">File KBLT Hôm Trước</div>
+                                <div class="zone-hint">File KBLT ngày trước đó để bổ trợ phát hiện bệnh nhân đã ra viện</div>
+                                <div class="file-name" id="resultFileName"></div>
+                            </div>
+                            <input type="file" id="resultFile" accept=".xlsx,.xls">
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="submit-section">
-                <button type="button" class="btn-compare" id="btnCompareBca" disabled onclick="runBcaComparison()">
+                <button type="button" class="btn-action-main btn-compare" id="btnCompareBca" disabled onclick="runBcaComparison()">
                     <div class="spinner"></div>
-                    <span class="btn-text">🏥 So sánh ngay</span>
+                    <span class="btn-text">🏥 Bắt đầu so sánh & phân loại</span>
                 </button>
                 <div class="error-banner" id="errorBannerBca"></div>
             </div>
@@ -903,11 +1555,11 @@
             <div class="discharge-results" id="bcaResults">
                 <div class="discharge-banner">
                     <div class="check-icon">🏥</div>
-                    <h3>Kết quả so sánh</h3>
+                    <h3>Kết quả đối soát đa chiều</h3>
                     <p id="bcaSummary"></p>
                 </div>
 
-                <div class="discharge-stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+                <div class="discharge-stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="statHis">0</div>
                         <div class="stat-label">BN trên HIS</div>
@@ -918,7 +1570,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statBcaStill">0</div>
-                        <div class="stat-label">Còn nằm viện</div>
+                        <div class="stat-label">Đang nằm viện</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statBcaDischarged">0</div>
@@ -926,32 +1578,67 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statBcaNew">0</div>
-                        <div class="stat-label">BN mới (cần nạp)</div>
+                        <div class="stat-label">BN Mới (cần nạp)</div>
                     </div>
                 </div>
 
-                <div id="noBcaDischargeMsg" class="no-discharge" style="display: none; margin-top: 16px;">
+                <div id="noBcaDischargeMsg" class="no-discharge" style="display: none;">
                     <span class="nd-icon">✅</span>
                     <strong>Không có bệnh nhân nào ra viện</strong>
-                    <p style="margin-top: 6px;">Tất cả BN trên BCA đều còn trên HIS.</p>
+                    <p style="margin-top: 6px;">Tất cả bệnh nhân trên BCA đều còn trong danh sách điều trị của HIS.</p>
                 </div>
 
-                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
-                    <button type="button" class="btn-download" id="btnDownloadBcaNew" style="display: none; background: #2563eb;" title="File mẫu chuẩn BCA để import trực tiếp lên web lưu trú">
-                        📥 Tải DS BN mới nạp BCA (.xlsx)
-                    </button>
-                    <button type="button" class="btn-download" id="btnDownloadBcaStill" style="display: none; background: #10b981;">
-                        📥 Tải DS còn nằm viện (.xlsx)
-                    </button>
-                    <button type="button" class="btn-download" id="btnDownloadBca" style="display: none; background: #ef4444;">
-                        📥 Tải DS đã ra viện (.xlsx)
-                    </button>
-                    <button type="button" class="btn-download" id="btnDownloadBcaNewSummary" style="display: none; background: #475569;" title="Bảng tóm tắt rút gọn để xem hoặc in">
-                        📄 Tải tóm tắt BN mới (.xlsx)
-                    </button>
-                    <button type="button" class="btn-reset" onclick="resetBca()">
-                        🔄 Làm mới
-                    </button>
+                <!-- Download Command Center -->
+                <div class="download-hub">
+                    <div class="download-hub-title">⚡ Danh sách tệp kết quả xuất khẩu</div>
+                    
+                    <div class="download-actions-grid">
+                        <!-- Primary Action Card: BN Mới chuẩn BCA -->
+                        <button type="button" class="btn-download-card primary-bca" id="btnDownloadBcaNew" style="display: none;" title="File mẫu chuẩn BCA để import trực tiếp lên Cổng DVC Bộ Công An">
+                            <span class="btn-main-icon">⭐</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải DS BN Mới Nạp BCA (.xlsx)</span>
+                                <span class="btn-sub-label">File chuẩn mẫu Bộ Công An • Import trực tiếp</span>
+                            </span>
+                            <span class="btn-count-pill" id="badgeBcaNew">0 BN</span>
+                        </button>
+
+                        <!-- Action Card: Còn nằm viện -->
+                        <button type="button" class="btn-download-card success-still" id="btnDownloadBcaStill" style="display: none;" title="Danh sách tiếp tục nằm viện cần gia hạn">
+                            <span class="btn-main-icon">🏥</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải DS Còn Nằm Viện (.xlsx)</span>
+                                <span class="btn-sub-label">Danh sách cần gia hạn lưu trú</span>
+                            </span>
+                            <span class="btn-count-pill" id="badgeBcaStill">0 BN</span>
+                        </button>
+
+                        <!-- Action Card: Đã ra viện -->
+                        <button type="button" class="btn-download-card danger-discharged" id="btnDownloadBca" style="display: none;" title="Danh sách bệnh nhân đã xuất viện">
+                            <span class="btn-main-icon">🚪</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải DS Đã Ra Viện (.xlsx)</span>
+                                <span class="btn-sub-label">Bệnh nhân đã xuất viện</span>
+                            </span>
+                            <span class="btn-count-pill" id="badgeBcaDischarged">0 BN</span>
+                        </button>
+
+                        <!-- Action Card: Tóm tắt BN Mới -->
+                        <button type="button" class="btn-download-card slate-summary" id="btnDownloadBcaNewSummary" style="display: none;" title="Bảng tóm tắt rút gọn để xem hoặc in">
+                            <span class="btn-main-icon">📄</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải Tóm Tắt BN Mới (.xlsx)</span>
+                                <span class="btn-sub-label">Bảng rút gọn để in ấn / lưu trữ</span>
+                            </span>
+                            <span class="btn-count-pill" id="badgeBcaSummary">0 BN</span>
+                        </button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 14px;">
+                        <button type="button" class="btn-reset" onclick="resetBca()">
+                            🔄 Làm mới & So sánh lại
+                        </button>
+                    </div>
                 </div>
             </div>
         </div><!-- end tab-bca -->
@@ -1678,17 +2365,34 @@ function resetForm() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// ===== Quick Guide Toggle =====
+function toggleGuide() {
+    const body = document.getElementById('guideBody');
+    const chevron = document.getElementById('guideChevron');
+    if (body.classList.contains('open')) {
+        body.classList.remove('open');
+        chevron.textContent = '▼';
+    } else {
+        body.classList.add('open');
+        chevron.textContent = '▲';
+    }
+}
+
 // ============================================================
 // TAB NAVIGATION
 // ============================================================
-function switchTab(tabId) {
-    // Update tab buttons
+function switchTab(tabId, el) {
     document.querySelectorAll('.tab-item').forEach(btn => btn.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    if (el) {
+        el.classList.add('active');
+    } else {
+        const btn = document.querySelector(`.tab-item[data-tab="${tabId}"]`);
+        if (btn) btn.classList.add('active');
+    }
 
-    // Update tab content
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.getElementById('tab-' + tabId).classList.add('active');
+    const target = document.getElementById('tab-' + tabId);
+    if (target) target.classList.add('active');
 }
 
 // ============================================================
@@ -1925,8 +2629,15 @@ function showDischargeResults(yCount, tCount, discharged) {
     const dlBtn = document.getElementById('btnDownloadDischarge');
     if (discharged.length > 0) {
         document.getElementById('noDischargeMsg').style.display = 'none';
-        dlBtn.style.display = 'inline-flex';
-        dlBtn.textContent = `📥 Tải danh sách ra viện (${discharged.length} BN)`;
+        dlBtn.style.display = 'flex';
+        dlBtn.innerHTML = `
+            <span class="btn-main-icon">🚪</span>
+            <span class="btn-text-group">
+                <span class="btn-main-label">Tải Danh Sách Ra Viện (.xlsx)</span>
+                <span class="btn-sub-label">Danh sách bệnh nhân đã xuất viện</span>
+            </span>
+            <span class="btn-count-pill">${discharged.length} BN</span>
+        `;
         dlBtn.onclick = downloadDischargeList;
     } else {
         document.getElementById('noDischargeMsg').style.display = 'block';
@@ -2314,15 +3025,17 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
     // --- Cập nhật các nút tải về trực tiếp với số lượng BN ---
     const dlBtnNew = document.getElementById('btnDownloadBcaNew');
     const dlBtnNewSum = document.getElementById('btnDownloadBcaNewSummary');
+    const badgeNew = document.getElementById('badgeBcaNew');
+    const badgeSum = document.getElementById('badgeBcaSummary');
     if (newPatients.length > 0) {
         if (dlBtnNew) {
-            dlBtnNew.style.display = 'inline-flex';
-            dlBtnNew.textContent = `📥 Tải DS BN mới nạp BCA (${newPatients.length} BN)`;
+            dlBtnNew.style.display = 'flex';
+            if (badgeNew) badgeNew.textContent = `${newPatients.length} BN`;
             dlBtnNew.onclick = downloadBcaNewList;
         }
         if (dlBtnNewSum) {
-            dlBtnNewSum.style.display = 'inline-flex';
-            dlBtnNewSum.textContent = `📄 Tải tóm tắt BN mới (${newPatients.length} BN)`;
+            dlBtnNewSum.style.display = 'flex';
+            if (badgeSum) badgeSum.textContent = `${newPatients.length} BN`;
             dlBtnNewSum.onclick = downloadBcaNewSummary;
         }
     } else {
@@ -2331,10 +3044,11 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
     }
 
     const dlBtnStill = document.getElementById('btnDownloadBcaStill');
+    const badgeStill = document.getElementById('badgeBcaStill');
     if (stillHospitalized.length > 0) {
         if (dlBtnStill) {
-            dlBtnStill.style.display = 'inline-flex';
-            dlBtnStill.textContent = `📥 Tải DS còn nằm viện (${stillHospitalized.length} BN)`;
+            dlBtnStill.style.display = 'flex';
+            if (badgeStill) badgeStill.textContent = `${stillHospitalized.length} BN`;
             dlBtnStill.onclick = downloadBcaStillList;
         }
     } else {
@@ -2343,18 +3057,21 @@ function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPa
 
     // Nút tải danh sách ra viện: Luôn hiển thị để người dùng thấy rõ
     const dlBtnDis = document.getElementById('btnDownloadBca');
+    const badgeDis = document.getElementById('badgeBcaDischarged');
     if (dlBtnDis) {
         if (discharged.length > 0) {
-            dlBtnDis.style.display = 'inline-flex';
+            dlBtnDis.style.display = 'flex';
             dlBtnDis.disabled = false;
             dlBtnDis.style.opacity = '1';
-            dlBtnDis.textContent = `📥 Tải DS đã ra viện (${discharged.length} BN)`;
+            dlBtnDis.style.cursor = 'pointer';
+            if (badgeDis) badgeDis.textContent = `${discharged.length} BN`;
             dlBtnDis.onclick = downloadBcaList;
         } else {
-            dlBtnDis.style.display = 'inline-flex';
+            dlBtnDis.style.display = 'flex';
             dlBtnDis.disabled = true;
-            dlBtnDis.style.opacity = '0.5';
-            dlBtnDis.textContent = `📥 Đã ra viện (0 BN)`;
+            dlBtnDis.style.opacity = '0.45';
+            dlBtnDis.style.cursor = 'not-allowed';
+            if (badgeDis) badgeDis.textContent = '0 BN';
             dlBtnDis.onclick = null;
         }
     }
