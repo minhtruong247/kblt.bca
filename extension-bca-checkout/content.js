@@ -32,28 +32,63 @@
     let isRunning = false;
     let isPaused = false;
     let autoConfirmModal = true;
+    let actionMode = 'checkout'; // 'checkout' | 'extend'
     let stepDelayMs = 1800;
     let searchMode = 'name'; // 'name' | 'docId' | 'both'
     let executionMode = 'auto'; // 'auto' | 'step'
     let checkoutMethod = 'auto'; // 'auto' | 'action_btn' | 'checkbox_toolbar' | 'custom'
+
+    // Helper: Calculate default date (Today + days)
+    function getDefaultExtendDate(daysToAdd = 7) {
+        const d = new Date();
+        d.setDate(d.getDate() + daysToAdd);
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    }
+
+    // Convert YYYY-MM-DD to DD/MM/YYYY
+    function isoToVnDate(isoStr) {
+        if (!isoStr) return '';
+        const parts = isoStr.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return isoStr;
+    }
+
+    // Convert DD/MM/YYYY to YYYY-MM-DD
+    function vnDateToIso(vnStr) {
+        if (!vnStr) return '';
+        const parts = vnStr.split('/');
+        if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        return '';
+    }
+
+    let extendTargetDate = getDefaultExtendDate(7);
 
     // Custom selectors (user can override)
     let customSelectors = {
         searchInput: '',
         searchButton: '',
         checkoutButton: '',
-        confirmButton: ''
+        confirmButton: '',
+        extendButton: '',
+        extendDateInput: '',
+        extendConfirmButton: ''
     };
 
     // Load saved settings
-    chrome.storage?.local?.get(['bca_delay', 'bca_searchMode', 'bca_execMode', 'bca_autoConfirm', 'bca_checkoutMethod', 'bca_selectors'], (res) => {
+    chrome.storage?.local?.get(['bca_delay', 'bca_searchMode', 'bca_execMode', 'bca_autoConfirm', 'bca_checkoutMethod', 'bca_actionMode', 'bca_extendTargetDate', 'bca_selectors'], (res) => {
         if (res.bca_delay) stepDelayMs = parseInt(res.bca_delay, 10);
         if (res.bca_searchMode) searchMode = res.bca_searchMode;
         if (res.bca_execMode) executionMode = res.bca_execMode;
         if (res.bca_checkoutMethod) checkoutMethod = res.bca_checkoutMethod;
         if (res.bca_autoConfirm !== undefined) autoConfirmModal = res.bca_autoConfirm;
+        if (res.bca_actionMode) actionMode = res.bca_actionMode;
+        if (res.bca_extendTargetDate) extendTargetDate = res.bca_extendTargetDate;
         if (res.bca_selectors) customSelectors = { ...customSelectors, ...res.bca_selectors };
         updateSettingsUI();
+        applyModeUI();
     });
 
     // Helper: Sleep
@@ -84,8 +119,8 @@
     // 1. Create Floating Launcher Button (Always available to reopen widget)
     const launcherBtn = document.createElement('div');
     launcherBtn.id = 'bca-launcher-btn';
-    launcherBtn.innerHTML = `<span>🚪</span> <span>BCA Check-out</span>`;
-    launcherBtn.title = 'Bấm để mở Bảng điều khiển BCA Auto Check-out';
+    launcherBtn.innerHTML = `<span>🚪</span> <span id="bcaLauncherText">BCA Check-out</span>`;
+    launcherBtn.title = 'Bấm để mở Bảng điều khiển BCA Auto Check-out & Gia hạn';
     document.body.appendChild(launcherBtn);
 
     // 2. Create Widget DOM
@@ -94,8 +129,8 @@
     widget.innerHTML = `
         <div class="bca-widget-header" id="bcaWidgetHeader">
             <div class="bca-widget-title">
-                <span class="bca-widget-title-icon">🚪</span>
-                <span>BCA Auto Check-out</span>
+                <span class="bca-widget-title-icon" id="bcaWidgetTitleIcon">🚪</span>
+                <span id="bcaWidgetTitleText">BCA Auto Check-out</span>
             </div>
             <div class="bca-widget-controls">
                 <button class="bca-header-btn bca-btn-minimize" id="bcaBtnMinimize" title="Thu nhỏ / Phóng to">_</button>
@@ -112,10 +147,39 @@
         <div class="bca-widget-body">
             <!-- TAB 1: IMPORT -->
             <div class="bca-tab-content active" id="tab-import">
+                <!-- Mode Switcher: Check-out vs Gia hạn -->
+                <div class="bca-mode-selector">
+                    <button type="button" class="bca-mode-btn mode-checkout active" id="bcaModeCheckout">
+                        <span>🚪 Trả phòng (Check-out)</span>
+                    </button>
+                    <button type="button" class="bca-mode-btn mode-extend" id="bcaModeExtend">
+                        <span>📅 Gia hạn lưu trú</span>
+                    </button>
+                </div>
+
+                <!-- Extend Stay Date Picker Container -->
+                <div class="bca-extend-box" id="bcaExtendDateContainer" style="display: none;">
+                    <label class="bca-option-label" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>📅 Chọn ngày gia hạn lưu trú:</span>
+                        <span id="bcaExtendDatePreview" style="color:#34d399; font-weight:700;"></span>
+                    </label>
+                    <div style="display:flex; gap:6px;">
+                        <input type="text" class="bca-input" id="bcaExtendDateInput" placeholder="DD/MM/YYYY (ví dụ: 09/10/2026)" style="flex:1; font-weight:700; color:#34d399; font-size:13px;">
+                        <input type="date" id="bcaExtendDatePicker" style="width:38px; padding:0 2px; cursor:pointer; background:rgba(15,23,42,0.9); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#fff;" title="Mở lịch chọn ngày">
+                    </div>
+                    <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+                        <button type="button" class="bca-quick-date-btn" data-days="3">+3 ngày</button>
+                        <button type="button" class="bca-quick-date-btn active" data-days="7">+7 ngày</button>
+                        <button type="button" class="bca-quick-date-btn" data-days="10">+10 ngày</button>
+                        <button type="button" class="bca-quick-date-btn" data-days="14">+14 ngày</button>
+                        <button type="button" class="bca-quick-date-btn" data-days="30">+30 ngày</button>
+                    </div>
+                </div>
+
                 <div class="bca-upload-box" id="bcaDropZone">
-                    <div class="bca-upload-icon">📄</div>
-                    <div class="bca-upload-title">Kéo thả file Excel Ra Viện (.xlsx)</div>
-                    <div class="bca-upload-hint">File xuất từ tool so sánh (DS_Ra_Vien_...xlsx) hoặc click để chọn</div>
+                    <div class="bca-upload-icon" id="bcaUploadIcon">📄</div>
+                    <div class="bca-upload-title" id="bcaUploadTitle">Kéo thả file Excel Ra Viện (.xlsx)</div>
+                    <div class="bca-upload-hint" id="bcaUploadHint">File xuất từ tool so sánh (DS_Ra_Vien_...xlsx) hoặc click để chọn</div>
                     <input type="file" id="bcaFileInput" accept=".xlsx,.xls" style="display:none">
                 </div>
 
@@ -165,6 +229,12 @@
 
             <!-- TAB 2: EXECUTION & MONITOR -->
             <div class="bca-tab-content" id="tab-run">
+                <!-- Mode & Target Date Banner -->
+                <div class="bca-active-mode-banner" id="bcaActiveModeBanner">
+                    <span id="bcaActiveModeTitle">Chế độ: 🚪 Trả phòng (Check-out)</span>
+                    <span class="bca-active-mode-tag checkout" id="bcaActiveModeTag">Check-out</span>
+                </div>
+
                 <div class="bca-stats-grid">
                     <div class="bca-stat-card">
                         <div class="bca-stat-num" id="bcaStatTotal">0</div>
@@ -172,7 +242,7 @@
                     </div>
                     <div class="bca-stat-card bca-stat-success">
                         <div class="bca-stat-num" id="bcaStatSuccess">0</div>
-                        <div class="bca-stat-label">Đã ra viện</div>
+                        <div class="bca-stat-label" id="bcaStatSuccessLabel">Đã ra viện</div>
                     </div>
                     <div class="bca-stat-card bca-stat-warning">
                         <div class="bca-stat-num" id="bcaStatNotFound">0</div>
@@ -217,10 +287,34 @@
                 </div>
 
                 <div class="bca-option-item">
-                    <label class="bca-option-label">Nút Trả phòng (Checkout Button) — Quan trọng nhất</label>
+                    <label class="bca-option-label">Nút Trả phòng (Checkout Button) — Cột Hành động hoặc Toolbar</label>
                     <div style="display:flex; gap:6px;">
                         <input class="bca-input" style="flex:1" id="cfgCheckoutButton" placeholder="Mặc định tự động nhận diện...">
                         <button class="bca-btn-secondary bca-pick-btn" data-target="checkoutButton" style="background:#2563eb; color:white;">🎯 Chấm Chọn</button>
+                    </div>
+                </div>
+
+                <div class="bca-option-item">
+                    <label class="bca-option-label">Nút Gia hạn (Extend Button) — Cột Hành động hoặc Toolbar</label>
+                    <div style="display:flex; gap:6px;">
+                        <input class="bca-input" style="flex:1" id="cfgExtendButton" placeholder="Tự động nhận diện nút Gia hạn...">
+                        <button class="bca-btn-secondary bca-pick-btn" data-target="extendButton" style="background:#10b981; color:white;">🎯 Chấm Chọn</button>
+                    </div>
+                </div>
+
+                <div class="bca-option-item">
+                    <label class="bca-option-label">Ô nhập ngày trên Popup Gia hạn (Date Input)</label>
+                    <div style="display:flex; gap:6px;">
+                        <input class="bca-input" style="flex:1" id="cfgExtendDateInput" placeholder="Tự động nhận diện ô ngày...">
+                        <button class="bca-btn-secondary bca-pick-btn" data-target="extendDateInput">🎯 Chọn</button>
+                    </div>
+                </div>
+
+                <div class="bca-option-item">
+                    <label class="bca-option-label">Nút Xác nhận Gia hạn trên Popup (Confirm Button)</label>
+                    <div style="display:flex; gap:6px;">
+                        <input class="bca-input" style="flex:1" id="cfgExtendConfirmButton" placeholder="Tự động nhận diện nút xanh Gia hạn...">
+                        <button class="bca-btn-secondary bca-pick-btn" data-target="extendConfirmButton">🎯 Chọn</button>
                     </div>
                 </div>
 
@@ -241,7 +335,7 @@
                 </div>
 
                 <div class="bca-option-item">
-                    <label class="bca-option-label">Nút Xác nhận Modal (Confirm Button)</label>
+                    <label class="bca-option-label">Nút Xác nhận Popup Trả phòng (Confirm Button)</label>
                     <div style="display:flex; gap:6px;">
                         <input class="bca-input" style="flex:1" id="cfgConfirmButton" placeholder="Tự động phát hiện...">
                         <button class="bca-btn-secondary bca-pick-btn" data-target="confirmButton">🎯 Chọn</button>
@@ -523,8 +617,11 @@
         container.innerHTML = patientQueue.map((p, idx) => {
             let badgeClass = 'bca-badge-pending';
             let statusText = 'Chờ xử lý';
-            if (p.status === 'running') { badgeClass = 'bca-badge-running'; statusText = 'Đang tìm...'; }
-            else if (p.status === 'success') { badgeClass = 'bca-badge-success'; statusText = 'Đã ra viện ✓'; }
+            if (p.status === 'running') { badgeClass = 'bca-badge-running'; statusText = 'Đang xử lý...'; }
+            else if (p.status === 'success') {
+                badgeClass = 'bca-badge-success';
+                statusText = p.action === 'extend' || actionMode === 'extend' ? 'Đã gia hạn ✓' : 'Đã ra viện ✓';
+            }
             else if (p.status === 'not_found') { badgeClass = 'bca-badge-warning'; statusText = 'Không thấy ⚠'; }
             else if (p.status === 'error') { badgeClass = 'bca-badge-danger'; statusText = 'Lỗi ✕'; }
 
@@ -552,6 +649,11 @@
         document.getElementById('bcaStatSuccess').textContent = success;
         document.getElementById('bcaStatNotFound').textContent = notFound;
         document.getElementById('bcaStatError').textContent = error;
+
+        const successLabel = document.getElementById('bcaStatSuccessLabel');
+        if (successLabel) {
+            successLabel.textContent = actionMode === 'extend' ? 'Đã gia hạn' : 'Đã ra viện';
+        }
 
         if (total > 0 && (success + notFound + error === total)) {
             document.getElementById('bcaBtnExportReport').style.display = 'flex';
@@ -864,6 +966,210 @@
         return null;
     }
 
+    // Helper: Find top toolbar "Gia hạn / Gia hạn lưu trú" button
+    function findToolbarExtendButton() {
+        const buttons = Array.from(document.querySelectorAll('button, a.btn, [role="button"], .ant-btn'));
+        for (const btn of buttons) {
+            if (widget.contains(btn) || btn.offsetParent === null) continue;
+            const text = normalizeStr(stripAccents(btn.innerText || btn.value || ''));
+            const title = normalizeStr(stripAccents(btn.getAttribute('title') || btn.getAttribute('aria-label') || ''));
+            if (text.includes('gia han') || title.includes('gia han')) {
+                return btn;
+            }
+        }
+        return null;
+    }
+
+    // Helper: Find Extend button for patient (Custom > Toolbar > Row Action button)
+    function findExtendButton(row) {
+        // Method 0: Custom selector if user explicitly configured
+        if (customSelectors.extendButton) {
+            const el = row?.querySelector(customSelectors.extendButton) || document.querySelector(customSelectors.extendButton);
+            if (el && el.offsetParent !== null && !widget.contains(el)) {
+                log('ℹ️ Phương thức: Nút Gia hạn theo bộ chọn tùy chỉnh');
+                return el;
+            }
+        }
+
+        // Method 1 (PREFERRED): Toolbar "Gia hạn" button (matches screenshot behavior)
+        const toolbarBtn = findToolbarExtendButton();
+        if (toolbarBtn) {
+            log('ℹ️ Phương thức: Bấm nút Toolbar "Gia hạn lưu trú" (Ưu tiên)');
+            return toolbarBtn;
+        }
+
+        // Method 2: Action button in row
+        if (row) {
+            const cells = Array.from(row.querySelectorAll('td'));
+            const actionCell = cells.length > 0 ? cells[cells.length - 1] : row;
+            const actionButtons = Array.from(actionCell.querySelectorAll('button, a, [role="button"], span, div, i')).filter(el => {
+                return el.offsetParent !== null && !widget.contains(el);
+            });
+
+            for (const btn of actionButtons) {
+                const text = normalizeStr(stripAccents(btn.innerText || btn.value || ''));
+                const title = normalizeStr(stripAccents(btn.getAttribute('title') || btn.getAttribute('aria-label') || ''));
+                if (text.includes('gia han') || title.includes('gia han')) {
+                    log('ℹ️ Phương thức: Nút "Gia hạn" trong cột Hành động');
+                    return btn.closest('button, a, [role="button"]') || btn;
+                }
+            }
+
+            // Check clock or calendar icon in action cell
+            for (const btn of actionButtons) {
+                if (btn.querySelector('.fa-calendar, .anticon-calendar, .fa-clock, .anticon-clock-circle, .fa-history')) {
+                    log('ℹ️ Phương thức: Biểu tượng lịch/đồng hồ trong cột Hành động');
+                    return btn.closest('button, a, [role="button"]') || btn;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // Handle "GIA HẠN LƯU TRÚ" modal
+    async function handleExtendModal(targetDate) {
+        log(`[Modal] ⏳ Đang đợi hộp thoại "GIA HẠN LƯU TRÚ" xuất hiện...`);
+        let modal = null;
+
+        // Step 1: Wait up to 3500ms for modal
+        for (let wait = 0; wait < 14; wait++) {
+            await sleep(250);
+            const modals = Array.from(document.querySelectorAll(
+                '.ant-modal-wrap, .ant-modal, .ant-modal-content, [role="dialog"], .modal.show, .modal'
+            )).filter(m => m.offsetParent !== null && !widget.contains(m));
+
+            for (const m of modals) {
+                const text = normalizeStr(stripAccents(m.innerText || ''));
+                if (text.includes('gia han luu tru') || text.includes('gia han')) {
+                    modal = m;
+                    break;
+                }
+            }
+            if (modal) break;
+            if (modals.length > 0) {
+                modal = modals[0]; // fallback to active modal
+            }
+        }
+
+        if (!modal) {
+            throw new Error('Không thấy hộp thoại "GIA HẠN LƯU TRÚ" mở ra sau khi bấm nút.');
+        }
+
+        log(`[Modal] 📋 Đã phát hiện hộp thoại "GIA HẠN LƯU TRÚ".`);
+        await sleep(400);
+
+        // Step 2: Find date input inside modal
+        let dateInput = null;
+        if (customSelectors.extendDateInput) {
+            dateInput = modal.querySelector(customSelectors.extendDateInput) || document.querySelector(customSelectors.extendDateInput);
+        }
+
+        if (!dateInput) {
+            // Find input associated with label "Gia hạn thời gian lưu trú"
+            const labelElements = Array.from(modal.querySelectorAll('label, div, span')).filter(el => {
+                const t = normalizeStr(stripAccents(el.innerText || ''));
+                return t.includes('gia han thoi gian luu tru') || t.includes('thoi gian luu tru') || t.includes('ngay gia han');
+            });
+
+            for (const lbl of labelElements) {
+                const container = lbl.closest('.ant-form-item, .form-group, div') || lbl.parentElement;
+                if (container) {
+                    const inp = container.querySelector('input');
+                    if (inp && inp.offsetParent !== null) {
+                        dateInput = inp;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!dateInput) {
+            // Ant Design DatePicker input or general text input in modal
+            const inputs = Array.from(modal.querySelectorAll('.ant-calendar-picker-input, .ant-input, input[type="text"], input:not([type])'));
+            for (const inp of inputs) {
+                if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled && !widget.contains(inp)) {
+                    dateInput = inp;
+                    break;
+                }
+            }
+        }
+
+        if (!dateInput) {
+            throw new Error('Không tìm thấy ô nhập ngày gia hạn trong hộp thoại.');
+        }
+
+        // Step 3: Fill targetDate into input
+        const finalDate = targetDate || getDefaultExtendDate(7);
+        log(`[Modal] 📅 Đang điền ngày gia hạn: "${finalDate}"`);
+        dateInput.focus();
+        setInputValue(dateInput, finalDate);
+        await sleep(300);
+
+        // Close any calendar dropdown popup that may have popped open (Ant Design .ant-calendar)
+        const calendarPopup = document.querySelector('.ant-calendar-picker-container, .ant-calendar');
+        if (calendarPopup && calendarPopup.offsetParent !== null) {
+            const modalHeader = modal.querySelector('.ant-modal-header, .ant-modal-title') || modal;
+            modalHeader.click();
+            await sleep(200);
+        }
+
+        // Step 4: Find green "Gia hạn" confirm button
+        let confirmBtn = null;
+        if (customSelectors.extendConfirmButton) {
+            confirmBtn = modal.querySelector(customSelectors.extendConfirmButton) || document.querySelector(customSelectors.extendConfirmButton);
+        }
+
+        if (!confirmBtn) {
+            const allBtns = Array.from(modal.querySelectorAll('button, a.btn, [role="button"], .ant-btn, input[type="button"]'));
+            for (const btn of allBtns) {
+                if (btn.offsetParent === null || widget.contains(btn)) continue;
+                const text = normalizeStr(stripAccents(btn.innerText || btn.value || ''));
+                // Skip cancel / close buttons
+                if (text.includes('huy') || text.includes('dong') || text === 'cancel' || text === 'close') continue;
+
+                if (text === 'gia han' || (text.includes('gia han') && !text.includes('huy'))) {
+                    confirmBtn = btn;
+                    break;
+                }
+            }
+        }
+
+        // Fallback: green button or primary button inside modal
+        if (!confirmBtn) {
+            const allBtns = Array.from(modal.querySelectorAll('button, a.btn, [role="button"], .ant-btn, input[type="button"]'));
+            for (const btn of allBtns) {
+                if (btn.offsetParent === null || widget.contains(btn)) continue;
+                const text = normalizeStr(stripAccents(btn.innerText || ''));
+                if (text.includes('huy')) continue;
+                const style = window.getComputedStyle(btn);
+                const bg = style.backgroundColor || '';
+                const isGreen = bg.includes('rgb(82, 196, 26)') || bg.includes('rgb(34, 197, 94)') || bg.includes('rgb(16, 185, 129)') || bg.includes('rgb(46, 125, 50)');
+                if (isGreen || btn.classList.contains('ant-btn-primary')) {
+                    confirmBtn = btn;
+                    break;
+                }
+            }
+        }
+
+        if (!confirmBtn) {
+            throw new Error('Không tìm thấy nút "Gia hạn" xác nhận trong hộp thoại.');
+        }
+
+        // Step 5: Click confirm button
+        confirmBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        confirmBtn.click();
+        confirmBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+        log(`[Modal] ✅ Đã bấm nút "Gia hạn" xác nhận.`);
+
+        // Step 6: Handle any secondary confirmation dialog (e.g. "Bạn có chắc chắn muốn gia hạn?")
+        await sleep(600);
+        await handleConfirmModal();
+
+        // Step 7: Wait until modal closes
+        await waitForModalToClose();
+    }
+
     // 6. Handle Confirm Modal Dialog
     // CRITICAL: Only search INSIDE real modal containers, never on the entire page
     // Priority: "Có" > "Xác nhận" > "Đồng ý" > "OK"
@@ -1095,7 +1401,7 @@
         if (isRunning && !isPaused && runId === currentRunId) {
             const hasPending = patientQueue.some(p => p.status === 'pending' || p.status === 'running');
             if (!hasPending) {
-                log('🎉 HOÀN THÀNH TẤT CẢ DANH SÁCH!');
+                log(actionMode === 'extend' ? '🎉 HOÀN THÀNH TẤT CẢ GIA HẠN LƯU TRÚ!' : '🎉 HOÀN THÀNH TẤT CẢ TRẢ PHÒNG!');
                 stopExecution();
             }
         }
@@ -1259,54 +1565,93 @@
             await sleep(300);
             if (!isRunning || runId !== currentRunId) return;
 
-            // ============================================
-            // STEP 7: Find & Click Checkout button
-            // ============================================
-            const checkoutBtn = findCheckoutButton(row);
-            if (!checkoutBtn) {
-                throw new Error('Tìm thấy dòng BN nhưng không thấy nút "Trả phòng".');
+            if (actionMode === 'extend') {
+                // ============================================
+                // STEP 7 (EXTEND): Find & Click Extend Button
+                // ============================================
+                const extendBtn = findExtendButton(row);
+                if (!extendBtn) {
+                    throw new Error('Tìm thấy dòng BN nhưng không thấy nút "Gia hạn" trên Toolbar hoặc cột Hành động.');
+                }
+
+                extendBtn.classList.add('bca-highlight-target');
+                log(`📅 Đang mở hộp thoại Gia hạn lưu trú cho "${patient.hoTen}"...`);
+                await sleep(200);
+                extendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                extendBtn.click();
+                extendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+
+                // ============================================
+                // STEP 8 (EXTEND): Handle "GIA HẠN LƯU TRÚ" modal
+                // ============================================
+                await sleep(800);
+                if (!isRunning || runId !== currentRunId) return;
+
+                await handleExtendModal(extendTargetDate);
+                if (!isRunning || runId !== currentRunId) return;
+
+                // Extra wait
+                await sleep(1000);
+                if (!isRunning || runId !== currentRunId) return;
+
+                // ============================================
+                // STEP 11: Mark success for Extend
+                // ============================================
+                patient.status = 'success';
+                patient.action = 'extend';
+                patient.errorMsg = '';
+                log(`✅ [${idx + 1}/${patientQueue.length}] ĐÃ GIA HẠN THÀNH CÔNG: "${patient.hoTen}" đến ngày ${extendTargetDate}`);
+                row.classList.remove('bca-highlight-row');
+
+            } else {
+                // ============================================
+                // STEP 7 (CHECKOUT): Find & Click Checkout button
+                // ============================================
+                const checkoutBtn = findCheckoutButton(row);
+                if (!checkoutBtn) {
+                    throw new Error('Tìm thấy dòng BN nhưng không thấy nút "Trả phòng".');
+                }
+
+                checkoutBtn.classList.add('bca-highlight-target');
+                log(`🚪 Đang mở hộp thoại Trả phòng cho "${patient.hoTen}"...`);
+                await sleep(200);
+                checkoutBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                checkoutBtn.click();
+                checkoutBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+
+                // ============================================
+                // STEP 8: Wait for checkout modal/popup to appear
+                // ============================================
+                await sleep(800);
+                if (!isRunning || runId !== currentRunId) return;
+
+                // ============================================
+                // STEP 9: Handle Confirm Modal
+                // (Bấm nút "Có" / "Checkout/Trả phòng" / "Xác nhận")
+                // MUST complete before moving to next patient!
+                // ============================================
+                await handleConfirmModal();
+                if (!isRunning || runId !== currentRunId) return;
+
+                // ============================================
+                // STEP 10: Wait for modal to FULLY close
+                // ============================================
+                await waitForModalToClose();
+                if (!isRunning || runId !== currentRunId) return;
+
+                // Extra safety: wait for table to refresh after checkout
+                await sleep(1000);
+                if (!isRunning || runId !== currentRunId) return;
+
+                // ============================================
+                // STEP 11: Mark success for Checkout
+                // ============================================
+                patient.status = 'success';
+                patient.action = 'checkout';
+                patient.errorMsg = '';
+                log(`✅ [${idx + 1}/${patientQueue.length}] ĐÃ CHECK-OUT THÀNH CÔNG: "${patient.hoTen}"`);
+                row.classList.remove('bca-highlight-row');
             }
-
-            checkoutBtn.classList.add('bca-highlight-target');
-            log(`🚪 Đang mở hộp thoại Trả phòng cho "${patient.hoTen}"...`);
-            await sleep(200);
-            checkoutBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-            checkoutBtn.click();
-            checkoutBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-
-            // ============================================
-            // STEP 8: Wait for checkout modal/popup to appear
-            // ============================================
-            await sleep(800);
-            if (!isRunning || runId !== currentRunId) return;
-
-            // ============================================
-            // STEP 9: Handle Confirm Modal
-            // (Bấm nút "Có" / "Checkout/Trả phòng" / "Xác nhận")
-            // MUST complete before moving to next patient!
-            // ============================================
-            await handleConfirmModal();
-            if (!isRunning || runId !== currentRunId) return;
-
-            // ============================================
-            // STEP 10: Wait for modal to FULLY close
-            // This is critical: DO NOT search for next patient until modal is closed
-            // and server has processed the checkout request
-            // ============================================
-            await waitForModalToClose();
-            if (!isRunning || runId !== currentRunId) return;
-
-            // Extra safety: wait for table to refresh after checkout
-            await sleep(1000);
-            if (!isRunning || runId !== currentRunId) return;
-
-            // ============================================
-            // STEP 11: Mark success
-            // ============================================
-            patient.status = 'success';
-            patient.errorMsg = '';
-            log(`✅ [${idx + 1}/${patientQueue.length}] ĐÃ CHECK-OUT THÀNH CÔNG: "${patient.hoTen}"`);
-            row.classList.remove('bca-highlight-row');
 
             // ============================================
             // STEP 12: Clear search input before next patient
@@ -1383,7 +1728,7 @@
         isRunning = false;
         isPaused = false;
         currentRunId++; // invalidate any ongoing loop
-        btnStartText.textContent = 'BẮT ĐẦU TỰ ĐỘNG';
+        btnStartText.textContent = actionMode === 'extend' ? 'BẮT ĐẦU GIA HẠN' : 'BẮT ĐẦU TRẢ PHÒNG';
         btnStartIcon.textContent = '▶️';
         btnStop.disabled = true;
 
@@ -1404,7 +1749,9 @@
 
         patientQueue.forEach((p, idx) => {
             let sttText = 'Chờ xử lý';
-            if (p.status === 'success') sttText = 'Đã trả phòng thành công';
+            if (p.status === 'success') {
+                sttText = (p.action === 'extend' || actionMode === 'extend') ? `Đã gia hạn thành công (đến ${extendTargetDate})` : 'Đã trả phòng thành công';
+            }
             else if (p.status === 'not_found') sttText = 'Không tìm thấy trên web BCA';
             else if (p.status === 'error') sttText = 'Lỗi trong quá trình thao tác';
 
@@ -1412,14 +1759,159 @@
         });
 
         const ws = XLSX.utils.aoa_to_sheet(data);
-        ws['!cols'] = [{ wch: 6 }, { wch: 28 }, { wch: 18 }, { wch: 20 }, { wch: 26 }, { wch: 30 }];
+        ws['!cols'] = [{ wch: 6 }, { wch: 28 }, { wch: 18 }, { wch: 20 }, { wch: 30 }, { wch: 30 }];
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Ket_Qua_Checkout');
+        XLSX.utils.book_append_sheet(wb, ws, actionMode === 'extend' ? 'Ket_Qua_Gia_Han' : 'Ket_Qua_Checkout');
 
         const now = new Date();
         const dd = String(now.getDate()).padStart(2, '0');
         const mm = String(now.getMonth() + 1).padStart(2, '0');
-        XLSX.writeFile(wb, `BaoCao_Checkout_BCA_${dd}${mm}.xlsx`);
+        const filePrefix = actionMode === 'extend' ? 'BaoCao_GiaHan_BCA' : 'BaoCao_Checkout_BCA';
+        XLSX.writeFile(wb, `${filePrefix}_${dd}${mm}.xlsx`);
+    });
+
+    // ==========================================
+    // Mode Switching & Date Management
+    // ==========================================
+    function applyModeUI() {
+        const btnCheckout = document.getElementById('bcaModeCheckout');
+        const btnExtend = document.getElementById('bcaModeExtend');
+        const extendContainer = document.getElementById('bcaExtendDateContainer');
+        const extendInput = document.getElementById('bcaExtendDateInput');
+        const extendPicker = document.getElementById('bcaExtendDatePicker');
+        const extendPreview = document.getElementById('bcaExtendDatePreview');
+        const titleIcon = document.getElementById('bcaWidgetTitleIcon');
+        const titleText = document.getElementById('bcaWidgetTitleText');
+        const launcherText = document.getElementById('bcaLauncherText');
+        const uploadTitle = document.getElementById('bcaUploadTitle');
+        const uploadHint = document.getElementById('bcaUploadHint');
+        const activeModeBanner = document.getElementById('bcaActiveModeBanner');
+        const activeModeTitle = document.getElementById('bcaActiveModeTitle');
+        const activeModeTag = document.getElementById('bcaActiveModeTag');
+        const successLabel = document.getElementById('bcaStatSuccessLabel');
+        const btnStartText = document.getElementById('bcaBtnStartText');
+
+        if (!extendTargetDate) {
+            extendTargetDate = getDefaultExtendDate(7);
+        }
+
+        if (extendInput) extendInput.value = extendTargetDate;
+        if (extendPicker) extendPicker.value = vnDateToIso(extendTargetDate);
+        if (extendPreview) extendPreview.textContent = extendTargetDate;
+
+        if (actionMode === 'extend') {
+            if (btnCheckout) btnCheckout.classList.remove('active');
+            if (btnExtend) btnExtend.classList.add('active');
+            if (extendContainer) extendContainer.style.display = 'flex';
+            if (titleIcon) titleIcon.textContent = '📅';
+            if (titleText) titleText.textContent = 'BCA Gia Hạn Lưu Trú';
+            if (launcherText) launcherText.textContent = 'BCA Gia hạn';
+            if (uploadTitle) uploadTitle.textContent = 'Kéo thả file Excel Bệnh Nhân Cần Gia Hạn (.xlsx)';
+            if (uploadHint) uploadHint.textContent = 'File danh sách bệnh nhân đang nằm viện hoặc click để chọn';
+            if (activeModeTitle) activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+            if (activeModeTag) {
+                activeModeTag.textContent = 'Gia hạn';
+                activeModeTag.className = 'bca-active-mode-tag extend';
+            }
+            if (successLabel) successLabel.textContent = 'Đã gia hạn';
+            if (btnStartText && !isRunning) btnStartText.textContent = 'BẮT ĐẦU GIA HẠN';
+        } else {
+            if (btnCheckout) btnCheckout.classList.add('active');
+            if (btnExtend) btnExtend.classList.remove('active');
+            if (extendContainer) extendContainer.style.display = 'none';
+            if (titleIcon) titleIcon.textContent = '🚪';
+            if (titleText) titleText.textContent = 'BCA Auto Check-out';
+            if (launcherText) launcherText.textContent = 'BCA Check-out';
+            if (uploadTitle) uploadTitle.textContent = 'Kéo thả file Excel Ra Viện (.xlsx)';
+            if (uploadHint) uploadHint.textContent = 'File xuất từ tool so sánh (DS_Ra_Vien_...xlsx) hoặc click để chọn';
+            if (activeModeTitle) activeModeTitle.textContent = 'Chế độ: 🚪 Trả phòng (Check-out)';
+            if (activeModeTag) {
+                activeModeTag.textContent = 'Check-out';
+                activeModeTag.className = 'bca-active-mode-tag checkout';
+            }
+            if (successLabel) successLabel.textContent = 'Đã ra viện';
+            if (btnStartText && !isRunning) btnStartText.textContent = 'BẮT ĐẦU TRẢ PHÒNG';
+        }
+
+        updateQueueUI();
+        updateStats();
+    }
+
+    // Mode buttons click
+    const btnModeCheckout = document.getElementById('bcaModeCheckout');
+    const btnModeExtend = document.getElementById('bcaModeExtend');
+
+    if (btnModeCheckout) {
+        btnModeCheckout.addEventListener('click', () => {
+            actionMode = 'checkout';
+            applyModeUI();
+            saveSettings();
+            log('🔄 Đã chuyển sang chế độ: 🚪 Trả phòng (Check-out)');
+        });
+    }
+
+    if (btnModeExtend) {
+        btnModeExtend.addEventListener('click', () => {
+            actionMode = 'extend';
+            applyModeUI();
+            saveSettings();
+            log(`🔄 Đã chuyển sang chế độ: 📅 Gia hạn lưu trú (đến ngày ${extendTargetDate})`);
+        });
+    }
+
+    // Date text input
+    const extendDateInput = document.getElementById('bcaExtendDateInput');
+    const extendDatePicker = document.getElementById('bcaExtendDatePicker');
+    const extendDatePreview = document.getElementById('bcaExtendDatePreview');
+
+    if (extendDateInput) {
+        extendDateInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            extendTargetDate = val;
+            if (extendDatePreview) extendDatePreview.textContent = val;
+            if (extendDatePicker) extendDatePicker.value = vnDateToIso(val);
+            const activeModeTitle = document.getElementById('bcaActiveModeTitle');
+            if (activeModeTitle && actionMode === 'extend') {
+                activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+            }
+            saveSettings();
+        });
+    }
+
+    if (extendDatePicker) {
+        extendDatePicker.addEventListener('change', (e) => {
+            const vnDate = isoToVnDate(e.target.value);
+            if (vnDate) {
+                extendTargetDate = vnDate;
+                if (extendDateInput) extendDateInput.value = vnDate;
+                if (extendDatePreview) extendDatePreview.textContent = vnDate;
+                const activeModeTitle = document.getElementById('bcaActiveModeTitle');
+                if (activeModeTitle && actionMode === 'extend') {
+                    activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+                }
+                saveSettings();
+                log(`📅 Đã chọn ngày gia hạn: ${vnDate}`);
+            }
+        });
+    }
+
+    // Quick date buttons (+3, +7, +10, +14, +30 days)
+    widget.querySelectorAll('.bca-quick-date-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            widget.querySelectorAll('.bca-quick-date-btn').forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            const days = parseInt(e.currentTarget.dataset.days || '7', 10);
+            extendTargetDate = getDefaultExtendDate(days);
+            if (extendDateInput) extendDateInput.value = extendTargetDate;
+            if (extendDatePicker) extendDatePicker.value = vnDateToIso(extendTargetDate);
+            if (extendDatePreview) extendDatePreview.textContent = extendTargetDate;
+            const activeModeTitle = document.getElementById('bcaActiveModeTitle');
+            if (activeModeTitle && actionMode === 'extend') {
+                activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+            }
+            saveSettings();
+            log(`📅 Đã chọn nhanh ngày gia hạn (+${days} ngày): ${extendTargetDate}`);
+        });
     });
 
     // ==========================================
@@ -1449,7 +1941,7 @@
         checkoutMethodSelect.addEventListener('change', (e) => {
             checkoutMethod = e.target.value;
             saveSettings();
-            log(`⚙️ Đã chuyển phương thức bấm Checkout sang: "${e.target.options[e.target.selectedIndex].text}"`);
+            log(`⚙️ Đã chuyển phương thức bấm Thao tác sang: "${e.target.options[e.target.selectedIndex].text}"`);
         });
     }
 
@@ -1459,6 +1951,8 @@
             bca_searchMode: searchMode,
             bca_checkoutMethod: checkoutMethod,
             bca_autoConfirm: autoConfirmModal,
+            bca_actionMode: actionMode,
+            bca_extendTargetDate: extendTargetDate,
             bca_selectors: customSelectors
         });
     }
@@ -1472,11 +1966,17 @@
         const cfgInp = document.getElementById('cfgSearchInput');
         const cfgBtn = document.getElementById('cfgSearchButton');
         const cfgChk = document.getElementById('cfgCheckoutButton');
+        const cfgExtBtn = document.getElementById('cfgExtendButton');
+        const cfgExtDate = document.getElementById('cfgExtendDateInput');
+        const cfgExtCnf = document.getElementById('cfgExtendConfirmButton');
         const cfgCnf = document.getElementById('cfgConfirmButton');
 
         if (cfgInp) cfgInp.value = customSelectors.searchInput || '';
         if (cfgBtn) cfgBtn.value = customSelectors.searchButton || '';
         if (cfgChk) cfgChk.value = customSelectors.checkoutButton || '';
+        if (cfgExtBtn) cfgExtBtn.value = customSelectors.extendButton || '';
+        if (cfgExtDate) cfgExtDate.value = customSelectors.extendDateInput || '';
+        if (cfgExtCnf) cfgExtCnf.value = customSelectors.extendConfirmButton || '';
         if (cfgCnf) cfgCnf.value = customSelectors.confirmButton || '';
     }
 
@@ -1484,6 +1984,9 @@
         customSelectors.searchInput = document.getElementById('cfgSearchInput').value.trim();
         customSelectors.searchButton = document.getElementById('cfgSearchButton').value.trim();
         customSelectors.checkoutButton = document.getElementById('cfgCheckoutButton').value.trim();
+        customSelectors.extendButton = document.getElementById('cfgExtendButton').value.trim();
+        customSelectors.extendDateInput = document.getElementById('cfgExtendDateInput').value.trim();
+        customSelectors.extendConfirmButton = document.getElementById('cfgExtendConfirmButton').value.trim();
         customSelectors.confirmButton = document.getElementById('cfgConfirmButton').value.trim();
         if (customSelectors.checkoutButton) {
             checkoutMethod = 'custom';

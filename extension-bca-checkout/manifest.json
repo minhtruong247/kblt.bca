@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "BCA Auto Check-out | Tự Động Trả Phòng Bộ Công An",
-  "version": "1.1.0",
-  "description": "Tiện ích tự động tìm kiếm và thực hiện check-out / trả phòng cho danh sách bệnh nhân ra viện trên trang Quản lý lưu trú Bộ Công An (ASM / DVC).",
+  "name": "BCA Auto Check-out & Gia Hạn | Bộ Công An",
+  "version": "1.2.0",
+  "description": "Tiện ích tự động tìm kiếm, trả phòng (check-out) và gia hạn thời gian lưu trú cho bệnh nhân trên trang Quản lý lưu trú Bộ Công An (ASM / DVC).",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
