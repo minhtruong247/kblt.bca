@@ -168,9 +168,9 @@
                         <input type="date" id="bcaExtendDatePicker" style="width:38px; padding:0 2px; cursor:pointer; background:rgba(15,23,42,0.9); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#fff;" title="Mở lịch chọn ngày">
                     </div>
                     <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+                        <button type="button" class="bca-quick-date-btn active" data-days="next" title="Tự động bấm ngày kế tiếp có thể bấm được trên lịch (khuyên dùng)">⭐ Ngày kế tiếp có thể bấm</button>
                         <button type="button" class="bca-quick-date-btn" data-days="3">+3 ngày</button>
-                        <button type="button" class="bca-quick-date-btn active" data-days="7">+7 ngày</button>
-                        <button type="button" class="bca-quick-date-btn" data-days="10">+10 ngày</button>
+                        <button type="button" class="bca-quick-date-btn" data-days="7">+7 ngày</button>
                         <button type="button" class="bca-quick-date-btn" data-days="14">+14 ngày</button>
                         <button type="button" class="bca-quick-date-btn" data-days="30">+30 ngày</button>
                     </div>
@@ -1027,13 +1027,16 @@
         return null;
     }
 
-    // Handle "GIA HẠN LƯU TRÚ" modal
+    // Handle "GIA HẠN LƯU TRÚ" modal with exact 3-step sequence:
+    // Bước 1: Bấm vào ô "Gia hạn thời gian lưu trú" / icon lịch để mở popup lịch
+    // Bước 2: Bấm vào "ngày kế tiếp có thể bấm vào được" trên popup lịch (ngày đầu tiên không bị disabled)
+    // Bước 3: Bấm nút màu xanh lá "Gia hạn" để xác nhận
     async function handleExtendModal(targetDate) {
         log(`[Modal] ⏳ Đang đợi hộp thoại "GIA HẠN LƯU TRÚ" xuất hiện...`);
         let modal = null;
 
-        // Step 1: Wait up to 3500ms for modal
-        for (let wait = 0; wait < 14; wait++) {
+        // Chờ modal xuất hiện (tối đa 4000ms)
+        for (let wait = 0; wait < 16; wait++) {
             await sleep(250);
             const modals = Array.from(document.querySelectorAll(
                 '.ant-modal-wrap, .ant-modal, .ant-modal-content, [role="dialog"], .modal.show, .modal'
@@ -1047,9 +1050,7 @@
                 }
             }
             if (modal) break;
-            if (modals.length > 0) {
-                modal = modals[0]; // fallback to active modal
-            }
+            if (modals.length > 0) modal = modals[0];
         }
 
         if (!modal) {
@@ -1059,23 +1060,26 @@
         log(`[Modal] 📋 Đã phát hiện hộp thoại "GIA HẠN LƯU TRÚ".`);
         await sleep(400);
 
-        // Step 2: Find date input inside modal
+        // ==============================================================
+        // BƯỚC 1: Tìm ô "Gia hạn thời gian lưu trú *" và bấm vào để mở lịch (Vị trí 1 trong ảnh)
+        // ==============================================================
+        log(`[Bước 1] 📅 Đang tìm ô "Gia hạn thời gian lưu trú" và bấm để mở lịch...`);
         let dateInput = null;
         if (customSelectors.extendDateInput) {
             dateInput = modal.querySelector(customSelectors.extendDateInput) || document.querySelector(customSelectors.extendDateInput);
         }
 
         if (!dateInput) {
-            // Find input associated with label "Gia hạn thời gian lưu trú"
-            const labelElements = Array.from(modal.querySelectorAll('label, div, span')).filter(el => {
+            // Tìm theo label "Gia hạn thời gian lưu trú"
+            const labelEls = Array.from(modal.querySelectorAll('label, div, span, p')).filter(el => {
                 const t = normalizeStr(stripAccents(el.innerText || ''));
                 return t.includes('gia han thoi gian luu tru') || t.includes('thoi gian luu tru') || t.includes('ngay gia han');
             });
 
-            for (const lbl of labelElements) {
-                const container = lbl.closest('.ant-form-item, .form-group, div') || lbl.parentElement;
+            for (const lbl of labelEls) {
+                const container = lbl.closest('.ant-form-item, .form-group, .row, div') || lbl.parentElement;
                 if (container) {
-                    const inp = container.querySelector('input');
+                    const inp = container.querySelector('input:not([type="hidden"])');
                     if (inp && inp.offsetParent !== null) {
                         dateInput = inp;
                         break;
@@ -1085,10 +1089,10 @@
         }
 
         if (!dateInput) {
-            // Ant Design DatePicker input or general text input in modal
-            const inputs = Array.from(modal.querySelectorAll('.ant-calendar-picker-input, .ant-input, input[type="text"], input:not([type])'));
+            // Ant Design DatePicker input bên trong modal
+            const inputs = Array.from(modal.querySelectorAll('.ant-calendar-picker-input, .ant-picker-input input, .ant-input, input[type="text"], input:not([type="hidden"]):not([type="checkbox"])'));
             for (const inp of inputs) {
-                if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled && !widget.contains(inp)) {
+                if (inp.offsetParent !== null && !inp.disabled && !widget.contains(inp)) {
                     dateInput = inp;
                     break;
                 }
@@ -1099,75 +1103,200 @@
             throw new Error('Không tìm thấy ô nhập ngày gia hạn trong hộp thoại.');
         }
 
-        // Step 3: Fill targetDate into input
-        const finalDate = targetDate || getDefaultExtendDate(7);
-        log(`[Modal] 📅 Đang điền ngày gia hạn: "${finalDate}"`);
+        // Bấm vào ô input và icon lịch để kích hoạt mở popup lịch
+        dateInput.scrollIntoView({ block: 'nearest' });
         dateInput.focus();
-        setInputValue(dateInput, finalDate);
-        await sleep(300);
+        
+        dateInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        dateInput.click();
+        dateInput.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
 
-        // Close any calendar dropdown popup that may have popped open (Ant Design .ant-calendar)
-        const calendarPopup = document.querySelector('.ant-calendar-picker-container, .ant-calendar');
-        if (calendarPopup && calendarPopup.offsetParent !== null) {
-            const modalHeader = modal.querySelector('.ant-modal-header, .ant-modal-title') || modal;
-            modalHeader.click();
-            await sleep(200);
+        // Kích hoạt thêm icon lịch hoặc wrapper nếu có
+        const pickerWrap = dateInput.closest('.ant-calendar-picker, .ant-picker, div');
+        if (pickerWrap) {
+            const calIcon = pickerWrap.querySelector('.ant-calendar-picker-icon, .ant-picker-suffix, i, svg, span');
+            if (calIcon) {
+                calIcon.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                calIcon.click();
+                calIcon.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+            }
         }
 
-        // Step 4: Find green "Gia hạn" confirm button
+        // ==============================================================
+        // BƯỚC 2: Chờ popup lịch và bấm "NGÀY KẾ TIẾP CÓ THỂ BẤM VÀO ĐƯỢC" (Vị trí 2 trong ảnh)
+        // ==============================================================
+        log(`[Bước 2] 📅 Đang chờ popup lịch xuất hiện...`);
+        let calendarPopup = null;
+        for (let wait = 0; wait < 20; wait++) {
+            await sleep(150);
+            const popups = Array.from(document.querySelectorAll(
+                '.ant-calendar-picker-container, .ant-calendar, .ant-picker-dropdown, .ant-calendar-panel, [role="region"].ant-calendar-picker-container, .datepicker-dropdown'
+            )).filter(el => {
+                if (widget.contains(el)) return false;
+                const s = window.getComputedStyle(el);
+                return s.display !== 'none' && s.visibility !== 'hidden' && (el.offsetWidth > 0 || el.offsetHeight > 0);
+            });
+
+            if (popups.length > 0) {
+                calendarPopup = popups[popups.length - 1];
+                break;
+            }
+        }
+
+        if (!calendarPopup) {
+            // Thử kích hoạt lại ô input lần nữa nếu lịch chưa mở
+            log(`[Bước 2] ⚠️ Thử kích hoạt lại ô input để mở lịch...`);
+            dateInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+            dateInput.click();
+            await sleep(350);
+            calendarPopup = document.querySelector('.ant-calendar-picker-container, .ant-calendar, .ant-picker-dropdown');
+        }
+
+        let selectedDayText = '';
+
+        if (calendarPopup) {
+            log(`[Bước 2] 📋 Đã thấy popup lịch. Đang tìm ngày kế tiếp có thể bấm được...`);
+
+            // Hàm kiểm tra ô ngày có thể bấm được không (không bị disabled/mờ)
+            function isClickableDateCell(td) {
+                if (td.classList.contains('ant-calendar-disabled-cell')) return false;
+                if (td.classList.contains('ant-picker-cell-disabled')) return false;
+                if (td.classList.contains('disabled')) return false;
+                if (td.getAttribute('aria-disabled') === 'true') return false;
+                const s = window.getComputedStyle(td);
+                if (s.pointerEvents === 'none') return false;
+                const txt = (td.innerText || '').trim();
+                const n = parseInt(txt, 10);
+                return !isNaN(n) && n >= 1 && n <= 31;
+            }
+
+            const allTds = Array.from(calendarPopup.querySelectorAll('td'));
+            const clickableTds = allTds.filter(isClickableDateCell);
+
+            if (clickableTds.length > 0) {
+                let targetCell = null;
+
+                // Nếu người dùng chỉ định một ngày cụ thể (khác 'next')
+                if (targetDate && targetDate !== 'next' && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(targetDate)) {
+                    const targetDayNum = parseInt(targetDate.split('/')[0], 10);
+                    targetCell = clickableTds.find(td => {
+                        const day = parseInt((td.innerText || '').trim(), 10);
+                        return day === targetDayNum;
+                    });
+                }
+
+                // Mặc định hoặc nếu ngày chỉ định không bấm được: chọn ngày kế tiếp đầu tiên có thể bấm được
+                if (!targetCell) {
+                    targetCell = clickableTds[0];
+                }
+
+                const clickTarget = targetCell.querySelector('.ant-calendar-date, .ant-picker-cell-inner, div, span') || targetCell;
+                selectedDayText = (clickTarget.innerText || targetCell.innerText || '').trim();
+
+                log(`[Bước 2] 👉 Đang bấm vào ngày kế tiếp hợp lệ: Ngày ${selectedDayText}`);
+                clickTarget.scrollIntoView({ block: 'nearest' });
+                clickTarget.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, cancelable: true, view: window }));
+                clickTarget.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window }));
+                clickTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                clickTarget.click();
+                clickTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+                await sleep(400);
+                log(`[Bước 2] ✅ Đã chọn ngày ${selectedDayText} thành công!`);
+            } else {
+                log(`[Bước 2] ⚠️ Không tìm thấy ô ngày nào hợp lệ trên popup lịch.`);
+            }
+        } else {
+            log(`[Bước 2] ⚠️ Không mở được popup lịch, tự động tính toán ngày kế tiếp.`);
+        }
+
+        // Dự phòng: Nếu ô input vẫn trống, đọc ngày tạm trú hiện tại từ bảng rồi cộng 1 ngày
+        if (!dateInput.value || dateInput.value.trim() === '') {
+            let fallbackDate = '';
+            const modalTable = modal.querySelector('table');
+            if (modalTable) {
+                const cells = Array.from(modalTable.querySelectorAll('tbody td, tr td'));
+                for (const td of cells) {
+                    const txt = td.innerText.trim();
+                    if (/^\d{2}\/\d{2}\/\d{4}$/.test(txt)) {
+                        const parts = txt.split('/');
+                        const d = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+                        d.setDate(d.getDate() + 1);
+                        fallbackDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                        break;
+                    }
+                }
+            }
+            if (!fallbackDate) fallbackDate = targetDate && targetDate !== 'next' ? targetDate : getDefaultExtendDate(7);
+            log(`[Bước 2] 📝 Điền trực tiếp ngày dự phòng: ${fallbackDate}`);
+            setInputValue(dateInput, fallbackDate);
+            await sleep(300);
+        }
+
+        log(`[Bước 2] 📅 Ngày gia hạn xác nhận trên ô nhập: "${dateInput.value || selectedDayText}"`);
+        await sleep(350);
+
+        // ==============================================================
+        // BƯỚC 3: Bấm nút màu xanh lá "Gia hạn" (Vị trí 3 trong ảnh)
+        // ==============================================================
+        log(`[Bước 3] 🟢 Đang tìm và bấm nút xanh "Gia hạn"...`);
         let confirmBtn = null;
         if (customSelectors.extendConfirmButton) {
             confirmBtn = modal.querySelector(customSelectors.extendConfirmButton) || document.querySelector(customSelectors.extendConfirmButton);
         }
 
         if (!confirmBtn) {
-            const allBtns = Array.from(modal.querySelectorAll('button, a.btn, [role="button"], .ant-btn, input[type="button"]'));
-            for (const btn of allBtns) {
-                if (btn.offsetParent === null || widget.contains(btn)) continue;
-                const text = normalizeStr(stripAccents(btn.innerText || btn.value || ''));
-                // Skip cancel / close buttons
-                if (text.includes('huy') || text.includes('dong') || text === 'cancel' || text === 'close') continue;
+            const allBtns = Array.from(modal.querySelectorAll('button, a.btn, [role="button"], .ant-btn, input[type="button"]'))
+                .filter(b => b.offsetParent !== null && !widget.contains(b));
 
+            // Ưu tiên 1: Text chính xác là "Gia hạn" (không chứa chữ "Hủy")
+            for (const btn of allBtns) {
+                const text = normalizeStr(stripAccents(btn.innerText || btn.value || ''));
+                if (text.includes('huy') || text.includes('dong') || text === 'cancel' || text === 'close') continue;
                 if (text === 'gia han' || (text.includes('gia han') && !text.includes('huy'))) {
                     confirmBtn = btn;
                     break;
                 }
             }
-        }
 
-        // Fallback: green button or primary button inside modal
-        if (!confirmBtn) {
-            const allBtns = Array.from(modal.querySelectorAll('button, a.btn, [role="button"], .ant-btn, input[type="button"]'));
-            for (const btn of allBtns) {
-                if (btn.offsetParent === null || widget.contains(btn)) continue;
-                const text = normalizeStr(stripAccents(btn.innerText || ''));
-                if (text.includes('huy')) continue;
-                const style = window.getComputedStyle(btn);
-                const bg = style.backgroundColor || '';
-                const isGreen = bg.includes('rgb(82, 196, 26)') || bg.includes('rgb(34, 197, 94)') || bg.includes('rgb(16, 185, 129)') || bg.includes('rgb(46, 125, 50)');
-                if (isGreen || btn.classList.contains('ant-btn-primary')) {
-                    confirmBtn = btn;
-                    break;
+            // Ưu tiên 2: Nút màu xanh lá
+            if (!confirmBtn) {
+                for (const btn of allBtns) {
+                    const text = normalizeStr(stripAccents(btn.innerText || ''));
+                    if (text.includes('huy')) continue;
+                    const style = window.getComputedStyle(btn);
+                    const bg = (style.backgroundColor || '') + (style.backgroundImage || '');
+                    const isGreen = bg.includes('82, 196, 26') || bg.includes('34, 197, 94') || bg.includes('16, 185, 129') || bg.includes('46, 125, 50');
+                    if (isGreen || btn.classList.contains('ant-btn-primary')) {
+                        confirmBtn = btn;
+                        break;
+                    }
                 }
             }
         }
 
         if (!confirmBtn) {
-            throw new Error('Không tìm thấy nút "Gia hạn" xác nhận trong hộp thoại.');
+            throw new Error('Không tìm thấy nút "Gia hạn" màu xanh lá trong hộp thoại.');
         }
 
-        // Step 5: Click confirm button
+        log(`[Bước 3] 🟢 Đang bấm nút: "${confirmBtn.innerText.trim()}"`);
+        confirmBtn.scrollIntoView({ block: 'nearest' });
         confirmBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
         confirmBtn.click();
         confirmBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-        log(`[Modal] ✅ Đã bấm nút "Gia hạn" xác nhận.`);
+        log(`[Bước 3] ✅ Đã bấm nút "Gia hạn" xác nhận thành công!`);
 
-        // Step 6: Handle any secondary confirmation dialog (e.g. "Bạn có chắc chắn muốn gia hạn?")
+        // Kiểm tra nếu có hộp thoại xác nhận thứ 2
         await sleep(600);
-        await handleConfirmModal();
+        const secondConfirm = document.querySelector('.ant-modal-confirm, .ant-confirm, .swal2-container');
+        if (secondConfirm && secondConfirm.offsetParent !== null && !widget.contains(secondConfirm)) {
+            log(`[Modal] Phát hiện hộp thoại xác nhận phụ, đang xác nhận...`);
+            await handleConfirmModal();
+        }
 
-        // Step 7: Wait until modal closes
+        // Chờ hộp thoại đóng lại
         await waitForModalToClose();
+
+        return dateInput.value || selectedDayText;
     }
 
     // 6. Handle Confirm Modal Dialog
@@ -1587,7 +1716,7 @@
                 await sleep(800);
                 if (!isRunning || runId !== currentRunId) return;
 
-                await handleExtendModal(extendTargetDate);
+                const actualExtendedDate = await handleExtendModal(extendTargetDate);
                 if (!isRunning || runId !== currentRunId) return;
 
                 // Extra wait
@@ -1600,7 +1729,8 @@
                 patient.status = 'success';
                 patient.action = 'extend';
                 patient.errorMsg = '';
-                log(`✅ [${idx + 1}/${patientQueue.length}] ĐÃ GIA HẠN THÀNH CÔNG: "${patient.hoTen}" đến ngày ${extendTargetDate}`);
+                const dateLabel = actualExtendedDate ? ` (Đến ngày: ${actualExtendedDate})` : '';
+                log(`✅ [${idx + 1}/${patientQueue.length}] ĐÃ GIA HẠN THÀNH CÔNG: "${patient.hoTen}"${dateLabel}`);
                 row.classList.remove('bca-highlight-row');
 
             } else {
@@ -1792,12 +1922,18 @@
         const btnStartText = document.getElementById('bcaBtnStartText');
 
         if (!extendTargetDate) {
-            extendTargetDate = getDefaultExtendDate(7);
+            extendTargetDate = 'next';
         }
 
-        if (extendInput) extendInput.value = extendTargetDate;
-        if (extendPicker) extendPicker.value = vnDateToIso(extendTargetDate);
-        if (extendPreview) extendPreview.textContent = extendTargetDate;
+        if (extendInput) {
+            extendInput.value = extendTargetDate === 'next' ? 'Ngày kế tiếp có thể bấm' : extendTargetDate;
+        }
+        if (extendPicker) {
+            extendPicker.value = extendTargetDate === 'next' ? '' : vnDateToIso(extendTargetDate);
+        }
+        if (extendPreview) {
+            extendPreview.textContent = extendTargetDate === 'next' ? 'Ngày kế tiếp (Tự động)' : extendTargetDate;
+        }
 
         if (actionMode === 'extend') {
             if (btnCheckout) btnCheckout.classList.remove('active');
@@ -1808,7 +1944,11 @@
             if (launcherText) launcherText.textContent = 'BCA Gia hạn';
             if (uploadTitle) uploadTitle.textContent = 'Kéo thả file Excel Bệnh Nhân Cần Gia Hạn (.xlsx)';
             if (uploadHint) uploadHint.textContent = 'File danh sách bệnh nhân đang nằm viện hoặc click để chọn';
-            if (activeModeTitle) activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+            if (activeModeTitle) {
+                activeModeTitle.textContent = extendTargetDate === 'next'
+                    ? 'Chế độ: 📅 Gia hạn lưu trú (Ngày kế tiếp có thể bấm)'
+                    : `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+            }
             if (activeModeTag) {
                 activeModeTag.textContent = 'Gia hạn';
                 activeModeTag.className = 'bca-active-mode-tag extend';
@@ -1867,12 +2007,20 @@
     if (extendDateInput) {
         extendDateInput.addEventListener('input', (e) => {
             const val = e.target.value.trim();
-            extendTargetDate = val;
-            if (extendDatePreview) extendDatePreview.textContent = val;
-            if (extendDatePicker) extendDatePicker.value = vnDateToIso(val);
+            if (!val || val.toLowerCase().includes('kế tiếp') || val.toLowerCase().includes('tu dong') || val === 'next') {
+                extendTargetDate = 'next';
+                if (extendDatePreview) extendDatePreview.textContent = 'Ngày kế tiếp (Tự động)';
+                if (extendDatePicker) extendDatePicker.value = '';
+            } else {
+                extendTargetDate = val;
+                if (extendDatePreview) extendDatePreview.textContent = val;
+                if (extendDatePicker) extendDatePicker.value = vnDateToIso(val);
+            }
             const activeModeTitle = document.getElementById('bcaActiveModeTitle');
             if (activeModeTitle && actionMode === 'extend') {
-                activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+                activeModeTitle.textContent = extendTargetDate === 'next'
+                    ? 'Chế độ: 📅 Gia hạn lưu trú (Ngày kế tiếp có thể bấm)'
+                    : `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
             }
             saveSettings();
         });
@@ -1895,22 +2043,36 @@
         });
     }
 
-    // Quick date buttons (+3, +7, +10, +14, +30 days)
+    // Quick date buttons (next, +3, +7, +10, +14, +30 days)
     widget.querySelectorAll('.bca-quick-date-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             widget.querySelectorAll('.bca-quick-date-btn').forEach(b => b.classList.remove('active'));
             e.currentTarget.classList.add('active');
-            const days = parseInt(e.currentTarget.dataset.days || '7', 10);
-            extendTargetDate = getDefaultExtendDate(days);
-            if (extendDateInput) extendDateInput.value = extendTargetDate;
-            if (extendDatePicker) extendDatePicker.value = vnDateToIso(extendTargetDate);
-            if (extendDatePreview) extendDatePreview.textContent = extendTargetDate;
-            const activeModeTitle = document.getElementById('bcaActiveModeTitle');
-            if (activeModeTitle && actionMode === 'extend') {
-                activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+            const daysAttr = e.currentTarget.dataset.days || 'next';
+            if (daysAttr === 'next') {
+                extendTargetDate = 'next';
+                if (extendDateInput) extendDateInput.value = 'Ngày kế tiếp có thể bấm';
+                if (extendDatePicker) extendDatePicker.value = '';
+                if (extendDatePreview) extendDatePreview.textContent = 'Ngày kế tiếp (Tự động)';
+                const activeModeTitle = document.getElementById('bcaActiveModeTitle');
+                if (activeModeTitle && actionMode === 'extend') {
+                    activeModeTitle.textContent = 'Chế độ: 📅 Gia hạn lưu trú (Ngày kế tiếp có thể bấm)';
+                }
+                saveSettings();
+                log(`📅 Đã chọn: Tự động bấm ngày kế tiếp có thể bấm được trên lịch (theo từng BN)`);
+            } else {
+                const days = parseInt(daysAttr, 10);
+                extendTargetDate = getDefaultExtendDate(days);
+                if (extendDateInput) extendDateInput.value = extendTargetDate;
+                if (extendDatePicker) extendDatePicker.value = vnDateToIso(extendTargetDate);
+                if (extendDatePreview) extendDatePreview.textContent = extendTargetDate;
+                const activeModeTitle = document.getElementById('bcaActiveModeTitle');
+                if (activeModeTitle && actionMode === 'extend') {
+                    activeModeTitle.textContent = `Chế độ: 📅 Gia hạn lưu trú (đến ${extendTargetDate})`;
+                }
+                saveSettings();
+                log(`📅 Đã chọn nhanh ngày gia hạn (+${days} ngày): ${extendTargetDate}`);
             }
-            saveSettings();
-            log(`📅 Đã chọn nhanh ngày gia hạn (+${days} ngày): ${extendTargetDate}`);
         });
     });
 
