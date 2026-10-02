@@ -1094,6 +1094,26 @@
             color: #fb7185;
         }
 
+        .btn-download-card.warning-missing {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15));
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-download-card.warning-missing:hover {
+            border-color: rgba(245, 158, 11, 0.7);
+            box-shadow: 0 12px 35px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-download-card.warning-missing .btn-main-icon {
+            background: var(--gradient-warm);
+            color: white;
+        }
+
+        .btn-download-card.warning-missing .btn-count-pill {
+            background: rgba(245, 158, 11, 0.25);
+            color: #fbbf24;
+        }
+
         .btn-download-card.slate-summary {
             background: rgba(255, 255, 255, 0.03);
             border-color: rgba(255, 255, 255, 0.1);
@@ -1603,12 +1623,32 @@
                             <span class="btn-count-pill" id="badgeBcaNew">0 BN</span>
                         </button>
 
-                        <!-- Action Card: Còn nằm viện -->
-                        <button type="button" class="btn-download-card success-still" id="btnDownloadBcaStill" style="display: none;" title="Danh sách tiếp tục nằm viện cần gia hạn">
+                        <!-- Action Card: Cần Gia Hạn Lưu Trú (Đang có trên BCA) -->
+                        <button type="button" class="btn-download-card success-still" id="btnDownloadBcaExtend" style="display: none;" title="Danh sách bệnh nhân đang có trên web BCA cần gia hạn lưu trú (Nạp vào Extension để tự động gia hạn)">
+                            <span class="btn-main-icon">📅</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải DS Cần Gia Hạn (Trên BCA) (.xlsx)</span>
+                                <span class="btn-sub-label">Đang có trên web BCA • Dùng cho Extension gia hạn</span>
+                            </span>
+                            <span class="btn-count-pill" id="badgeBcaExtend">0 BN</span>
+                        </button>
+
+                        <!-- Action Card: Nằm viện nhưng Chưa có trên BCA -->
+                        <button type="button" class="btn-download-card warning-missing" id="btnDownloadBcaMissing" style="display: none;" title="Bệnh nhân vẫn đang nằm viện nhưng chưa có hồ sơ trên web BCA (Cần nạp mới)">
+                            <span class="btn-main-icon">⚠️</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải DS Chưa Có Trên BCA (.xlsx)</span>
+                                <span class="btn-sub-label">BN nằm viện chưa có trên BCA • Cần nạp mới</span>
+                            </span>
+                            <span class="btn-count-pill" id="badgeBcaMissing">0 BN</span>
+                        </button>
+
+                        <!-- Action Card: Tất cả Còn nằm viện -->
+                        <button type="button" class="btn-download-card slate-summary" id="btnDownloadBcaStill" style="display: none;" title="Toàn bộ danh sách tiếp tục nằm viện (Tổng hợp cả trên BCA và KBLT cũ)">
                             <span class="btn-main-icon">🏥</span>
                             <span class="btn-text-group">
-                                <span class="btn-main-label">Tải DS Còn Nằm Viện (.xlsx)</span>
-                                <span class="btn-sub-label">Danh sách cần gia hạn lưu trú</span>
+                                <span class="btn-main-label">Tải Toàn Bộ Còn Nằm Viện (.xlsx)</span>
+                                <span class="btn-sub-label">Tổng hợp toàn viện (theo dõi nội bộ)</span>
                             </span>
                             <span class="btn-count-pill" id="badgeBcaStill">0 BN</span>
                         </button>
@@ -1618,7 +1658,7 @@
                             <span class="btn-main-icon">🚪</span>
                             <span class="btn-text-group">
                                 <span class="btn-main-label">Tải DS Đã Ra Viện (.xlsx)</span>
-                                <span class="btn-sub-label">Bệnh nhân đã xuất viện</span>
+                                <span class="btn-sub-label">Bệnh nhân đã xuất viện • Dùng trả phòng</span>
                             </span>
                             <span class="btn-count-pill" id="badgeBcaDischarged">0 BN</span>
                         </button>
@@ -1635,9 +1675,10 @@
                     </div>
 
                     <div class="extension-tip-box" style="margin: 16px auto 0; max-width: 700px; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.35); border-radius: 12px; display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: #93c5fd;">
-                        <span style="font-size: 22px;">🚪</span>
+                        <span style="font-size: 22px;">⚡</span>
                         <div style="flex: 1; line-height: 1.4;">
-                            <strong style="color: #60a5fa;">Tự động trả phòng trên web BCA:</strong> Sử dụng tiện ích <strong>BCA Auto Check-out</strong> trong thư mục <code>extension-bca-checkout</code> để tự động tìm kiếm và check-out toàn bộ danh sách ra viện.
+                            <strong style="color: #60a5fa;">Tự động Trả phòng & Gia hạn trên web BCA:</strong> Sử dụng tiện ích <strong>BCA Auto Check-out & Gia Hạn</strong> (trong thư mục <code>extension-bca-checkout</code>) để tự động hóa toàn bộ thao tác Trả phòng (Check-out) hoặc Gia hạn lưu trú.
+                        </div>
                         </div>
                     </div>
 
@@ -3142,13 +3183,14 @@ async function runBcaComparison() {
     }
 }
 
-// ===== Show BCA results =====
 function showBcaResults(hisCount, prevCount, discharged, stillHospitalized, newPatients, bcaCount = 0, kbltCount = 0) {
     const summaryParts = [];
+    const onBcaList = stillHospitalized.filter(p => p.hasOnBca);
+    const missingList = stillHospitalized.filter(p => !p.hasOnBca);
+
     if (stillHospitalized.length > 0) {
-        const onBca = stillHospitalized.filter(p => p.hasOnBca).length;
         if (bcaCount > 0 && kbltCount > 0) {
-            summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (${onBca} trên BCA, ${stillHospitalized.length - onBca} từ KBLT cũ)`);
+            summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (${onBcaList.length} trên BCA cần gia hạn, ${missingList.length} chưa có trên BCA cần nạp mới)`);
         } else {
             summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (cần gia hạn)`);
         }
@@ -3191,6 +3233,33 @@ function showBcaResults(hisCount, prevCount, discharged, stillHospitalized, newP
         if (dlBtnNewSum) dlBtnNewSum.style.display = 'none';
     }
 
+    // Nút tải BN cần gia hạn (đang có trên web BCA)
+    const dlBtnExtend = document.getElementById('btnDownloadBcaExtend');
+    const badgeExtend = document.getElementById('badgeBcaExtend');
+    if (dlBtnExtend) {
+        if (onBcaList.length > 0) {
+            dlBtnExtend.style.display = 'flex';
+            if (badgeExtend) badgeExtend.textContent = `${onBcaList.length} BN`;
+            dlBtnExtend.onclick = downloadBcaExtendList;
+        } else {
+            dlBtnExtend.style.display = 'none';
+        }
+    }
+
+    // Nút tải BN nằm viện nhưng chưa có trên BCA (từ KBLT cũ)
+    const dlBtnMissing = document.getElementById('btnDownloadBcaMissing');
+    const badgeMissing = document.getElementById('badgeBcaMissing');
+    if (dlBtnMissing) {
+        if (missingList.length > 0) {
+            dlBtnMissing.style.display = 'flex';
+            if (badgeMissing) badgeMissing.textContent = `${missingList.length} BN`;
+            dlBtnMissing.onclick = downloadBcaMissingList;
+        } else {
+            dlBtnMissing.style.display = 'none';
+        }
+    }
+
+    // Nút tải toàn bộ BN còn nằm viện
     const dlBtnStill = document.getElementById('btnDownloadBcaStill');
     const badgeStill = document.getElementById('badgeBcaStill');
     if (stillHospitalized.length > 0) {
@@ -3241,9 +3310,21 @@ function downloadBcaList() {
     downloadPatientExcel(bcaDischargedList, 'BCA_Ra_Vien', 'BCA_Ra_Vien');
 }
 
+function downloadBcaExtendList() {
+    const list = bcaStillList.filter(p => p.hasOnBca);
+    if (list.length === 0) return;
+    downloadPatientExcel(list, 'BCA_Can_Gia_Han', 'DS_Can_Gia_Han_BCA');
+}
+
+function downloadBcaMissingList() {
+    const list = bcaStillList.filter(p => !p.hasOnBca);
+    if (list.length === 0) return;
+    downloadPatientExcel(list, 'BCA_Chua_Khai_Bao', 'DS_BN_Chua_Co_Tren_BCA');
+}
+
 function downloadBcaStillList() {
     if (bcaStillList.length === 0) return;
-    downloadPatientExcel(bcaStillList, 'BCA_Con_Nam', 'BCA_Con_Nam_Vien');
+    downloadPatientExcel(bcaStillList, 'BCA_Con_Nam', 'BCA_Toan_Bo_Con_Nam_Vien');
 }
 
 // Xuất file BN Mới theo đúng File Mẫu chuẩn KBLT của Bộ Công An
@@ -3435,6 +3516,8 @@ function resetBca() {
     document.getElementById('btnCompareBca').disabled = true;
     document.getElementById('btnDownloadBca').style.display = 'none';
     document.getElementById('btnDownloadBcaStill').style.display = 'none';
+    if (document.getElementById('btnDownloadBcaExtend')) document.getElementById('btnDownloadBcaExtend').style.display = 'none';
+    if (document.getElementById('btnDownloadBcaMissing')) document.getElementById('btnDownloadBcaMissing').style.display = 'none';
     document.getElementById('btnDownloadBcaNew').style.display = 'none';
     if (document.getElementById('btnDownloadBcaNewSummary')) {
         document.getElementById('btnDownloadBcaNewSummary').style.display = 'none';
