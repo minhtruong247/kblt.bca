@@ -2019,9 +2019,9 @@ function processFiles(srcArrayBuffer, extraDays) {
         return [null, stats];
     }
 
-    // Clear template data rows (row index 2 = Excel row 3, 0-indexed)
+    // Clear template data rows (row index 4 = Excel row 5, 0-indexed; rows 2 & 3 are "Mẫu dữ liệu" and "[EXAMPLE]")
     const tplRange = XLSX.utils.decode_range(wsTpl['!ref'] || 'A1');
-    clearCells(wsTpl, 2, tplRange.e.r, 0, 18);
+    clearCells(wsTpl, 4, Math.max(tplRange.e.r, 2000), 0, 18);
 
     const sourceStart = headerRowIdx + 1;
     let rowCount = 0;
@@ -2040,7 +2040,7 @@ function processFiles(srcArrayBuffer, extraDays) {
         const hoTen = safeGet(srcRow, 'ho_ten');
         if (!hoTen || String(hoTen).trim().startsWith('<')) continue;
 
-        const tplRow = 2 + rowCount; // 0-indexed (Excel row 3+)
+        const tplRow = 4 + rowCount; // 0-indexed (Excel row 5+, preserving rows 3 & 4 sample rows)
         stats.total_rows++;
 
         // Col 1: STT
@@ -2161,10 +2161,10 @@ function processFiles(srcArrayBuffer, extraDays) {
         rowCount++;
     }
 
-    // Update sheet range to include all new rows
+    // Update sheet range to include all new rows (starting from row 5 = idx 4)
     const finalRange = XLSX.utils.decode_range(wsTpl['!ref'] || 'A1');
-    finalRange.e.r = Math.max(finalRange.e.r, 2 + rowCount - 1);
-    finalRange.e.c = Math.max(finalRange.e.c, 16);
+    finalRange.e.r = Math.max(finalRange.e.r, 4 + rowCount - 1);
+    finalRange.e.c = Math.max(finalRange.e.c, 18);
     wsTpl['!ref'] = XLSX.utils.encode_range(finalRange);
 
     return [wbTpl, stats];
@@ -3256,11 +3256,11 @@ function downloadBcaNewList() {
             const wsTpl = wbTpl.Sheets['DS_KHACH_VIET_NAM_LUU_TRU'];
             if (wsTpl) {
                 const tplRange = XLSX.utils.decode_range(wsTpl['!ref'] || 'A1');
-                clearCells(wsTpl, 2, Math.max(tplRange.e.r, 2000), 0, 18);
+                clearCells(wsTpl, 4, Math.max(tplRange.e.r, 2000), 0, 18);
 
                 let lk = null;
                 bcaNewList.forEach((p, idx) => {
-                    const r = 2 + idx;
+                    const r = 4 + idx; // Excel row 5+ (giữ nguyên dòng 3 "Mẫu dữ liệu" và dòng 4 "[EXAMPLE]")
                     setCell(wsTpl, r, 0, idx + 1);
 
                     if (p.isKblt && p.rawRow && p.rawRow.length >= 10) {
@@ -3287,7 +3287,7 @@ function downloadBcaNewList() {
 
                 wsTpl['!ref'] = XLSX.utils.encode_range({
                     s: { r: 0, c: 0 },
-                    e: { r: 1 + bcaNewList.length, c: 18 }
+                    e: { r: 3 + bcaNewList.length, c: 18 }
                 });
 
                 const now = new Date();
