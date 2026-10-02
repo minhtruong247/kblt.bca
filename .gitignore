@@ -6,4 +6,4 @@ node_modules/
 package.json
 package-lock.json
 data/template_b64.txt
-
+scratch/

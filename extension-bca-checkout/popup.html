@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCA Auto Check-out</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <div class="popup-header">
+            <div class="popup-title">
+                <span class="icon">🚪</span>
+                <span>BCA Auto Check-out</span>
+            </div>
+            <span class="version-badge">v1.0</span>
+        </div>
+
+        <div class="popup-body">
+            <div class="info-card">
+                <div class="info-title">Hướng dẫn nhanh:</div>
+                <ol class="info-steps">
+                    <li>Mở trang <strong>Quản lý lưu trú BCA</strong> (ASM hoặc Dịch vụ công).</li>
+                    <li>Bảng điều khiển <strong>BCA Auto Check-out</strong> sẽ tự động xuất hiện ở góc phải màn hình.</li>
+                    <li>Kéo thả file <code>DS_Ra_Vien...xlsx</code> hoặc dán danh sách tên bệnh nhân.</li>
+                    <li>Bấm nút <strong>▶️ BẮT ĐẦU TỰ ĐỘNG</strong> để tiện ích tự tìm và trả phòng.</li>
+                </ol>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="btnToggleWidget">
+                    <span>🔄 Mở lại Bảng điều khiển trên trang</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="popup-footer">
+            <span>Tiện ích tự động hóa Quản lý lưu trú BCA</span>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

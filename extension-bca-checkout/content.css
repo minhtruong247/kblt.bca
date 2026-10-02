@@ -1,0 +1,563 @@
+/* BCA Auto Check-out Floating Panel Styling */
+#bca-checkout-widget {
+    position: fixed;
+    top: 30px;
+    right: 30px;
+    width: 420px;
+    max-height: 90vh;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.2);
+    color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    z-index: 2147483647;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease, opacity 0.2s ease;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+#bca-checkout-widget * {
+    box-sizing: border-box;
+}
+
+/* Floating Launcher Button */
+#bca-launcher-btn {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+    color: #ffffff !important;
+    padding: 10px 18px !important;
+    border-radius: 30px !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.2) !important;
+    cursor: pointer !important;
+    z-index: 2147483646 !important;
+    display: none !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    user-select: none !important;
+}
+
+#bca-launcher-btn:hover {
+    transform: translateY(-2px) scale(1.05) !important;
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.6), 0 0 0 3px rgba(56, 189, 248, 0.5) !important;
+}
+
+#bca-launcher-btn.visible {
+    display: flex !important;
+    animation: bca-pop 0.3s ease !important;
+}
+
+@keyframes bca-pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Minimized Floating Pill */
+#bca-checkout-widget.minimized {
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    border-radius: 30px;
+    background: linear-gradient(135deg, #1e3a8a, #0284c7);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 30px rgba(2, 132, 199, 0.5);
+    cursor: pointer;
+}
+
+#bca-checkout-widget.minimized .bca-widget-body,
+#bca-checkout-widget.minimized .bca-widget-tabs,
+#bca-checkout-widget.minimized .bca-widget-footer {
+    display: none !important;
+}
+
+#bca-checkout-widget.minimized .bca-widget-header {
+    padding: 10px 16px;
+    border-bottom: none;
+    background: transparent;
+}
+
+#bca-checkout-widget.minimized .bca-btn-minimize,
+#bca-checkout-widget.minimized .bca-btn-close {
+    display: none;
+}
+
+/* Header */
+.bca-widget-header {
+    padding: 12px 16px;
+    background: rgba(30, 41, 59, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: grab;
+}
+
+.bca-widget-header:active {
+    cursor: grabbing;
+}
+
+.bca-widget-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    color: #38bdf8;
+    letter-spacing: 0.3px;
+}
+
+.bca-widget-title-icon {
+    font-size: 16px;
+}
+
+.bca-widget-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bca-header-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s ease;
+}
+
+.bca-header-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.bca-header-btn.bca-btn-close:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Tabs */
+.bca-widget-tabs {
+    display: flex;
+    background: rgba(15, 23, 42, 0.6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 0 10px;
+}
+
+.bca-tab-btn {
+    flex: 1;
+    padding: 10px 8px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.bca-tab-btn:hover {
+    color: #e2e8f0;
+}
+
+.bca-tab-btn.active {
+    color: #38bdf8;
+    border-bottom-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.05);
+}
+
+/* Body */
+.bca-widget-body {
+    padding: 14px 16px;
+    overflow-y: auto;
+    max-height: calc(90vh - 120px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bca-tab-content {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bca-tab-content.active {
+    display: flex;
+}
+
+/* Upload & Input Area */
+.bca-upload-box {
+    border: 2px dashed rgba(56, 189, 248, 0.35);
+    background: rgba(56, 189, 248, 0.04);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bca-upload-box:hover, .bca-upload-box.dragover {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.bca-upload-icon {
+    font-size: 26px;
+    margin-bottom: 4px;
+}
+
+.bca-upload-title {
+    font-weight: 600;
+    color: #e2e8f0;
+    font-size: 13px;
+}
+
+.bca-upload-hint {
+    color: #64748b;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.bca-or-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 600;
+    margin: 2px 0;
+}
+
+.bca-or-divider::before, .bca-or-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bca-or-divider::before { margin-right: 8px; }
+.bca-or-divider::after { margin-left: 8px; }
+
+.bca-textarea {
+    width: 100%;
+    height: 75px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #f1f5f9;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+}
+
+.bca-textarea:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+/* Options / Settings */
+.bca-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: rgba(30, 41, 59, 0.4);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bca-option-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bca-option-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.bca-select, .bca-input {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: #f8fafc;
+    padding: 6px 8px;
+    font-size: 12px;
+    outline: none;
+}
+
+.bca-select:focus, .bca-input:focus {
+    border-color: #38bdf8;
+}
+
+.bca-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+    cursor: pointer;
+    margin-top: 4px;
+}
+
+.bca-checkbox-label input {
+    accent-color: #38bdf8;
+    cursor: pointer;
+}
+
+/* Stats Cards */
+.bca-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.bca-stat-card {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 8px 4px;
+    text-align: center;
+}
+
+.bca-stat-num {
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #f8fafc;
+}
+
+.bca-stat-label {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.bca-stat-success .bca-stat-num { color: #4ade80; }
+.bca-stat-warning .bca-stat-num { color: #facc15; }
+.bca-stat-danger .bca-stat-num { color: #f87171; }
+
+/* Control Buttons */
+.bca-control-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.bca-btn-primary {
+    flex: 2;
+    background: linear-gradient(135deg, #2563eb, #0284c7);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    transition: all 0.2s;
+}
+
+.bca-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8, #0369a1);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+}
+
+.bca-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.bca-btn-secondary {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 10px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.bca-btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.bca-btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.bca-btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+}
+
+.bca-btn-danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.3);
+    color: #ffffff;
+}
+
+/* Patient Queue List */
+.bca-queue-container {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.bca-queue-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 11.5px;
+    transition: background 0.15s;
+}
+
+.bca-queue-item:last-child {
+    border-bottom: none;
+}
+
+.bca-queue-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.bca-queue-item.active {
+    background: rgba(56, 189, 248, 0.12);
+    border-left: 3px solid #38bdf8;
+}
+
+.bca-patient-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 65%;
+}
+
+.bca-patient-name {
+    font-weight: 600;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bca-patient-sub {
+    font-size: 10px;
+    color: #94a3b8;
+}
+
+.bca-status-badge {
+    padding: 2px 7px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.bca-badge-pending {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
+
+.bca-badge-running {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    animation: bca-pulse 1.5s infinite;
+}
+
+.bca-badge-success {
+    background: rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+}
+
+.bca-badge-warning {
+    background: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+}
+
+.bca-badge-error {
+    background: rgba(248, 113, 113, 0.2);
+    color: #f87171;
+}
+
+@keyframes bca-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Logs */
+.bca-log-box {
+    background: rgba(2, 6, 23, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: monospace;
+    font-size: 11px;
+    color: #cbd5e1;
+    max-height: 100px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Visual Glow for Highlighted Row on BCA Web */
+.bca-highlight-row {
+    background-color: rgba(250, 204, 21, 0.25) !important;
+    outline: 2px solid #eab308 !important;
+    transition: background 0.3s ease !important;
+}
+
+.bca-highlight-target {
+    animation: bca-target-glow 1s infinite alternate !important;
+}
+
+@keyframes bca-target-glow {
+    from { box-shadow: 0 0 5px #38bdf8; }
+    to { box-shadow: 0 0 15px #38bdf8, 0 0 25px #0284c7; }
+}

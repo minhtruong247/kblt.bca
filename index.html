@@ -1634,6 +1634,13 @@
                         </button>
                     </div>
 
+                    <div class="extension-tip-box" style="margin: 16px auto 0; max-width: 700px; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.35); border-radius: 12px; display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: #93c5fd;">
+                        <span style="font-size: 22px;">🚪</span>
+                        <div style="flex: 1; line-height: 1.4;">
+                            <strong style="color: #60a5fa;">Tự động trả phòng trên web BCA:</strong> Sử dụng tiện ích <strong>BCA Auto Check-out</strong> trong thư mục <code>extension-bca-checkout</code> để tự động tìm kiếm và check-out toàn bộ danh sách ra viện.
+                        </div>
+                    </div>
+
                     <div style="text-align: center; margin-top: 14px;">
                         <button type="button" class="btn-reset" onclick="resetBca()">
                             🔄 Làm mới & So sánh lại
@@ -1945,6 +1952,26 @@ function clearCells(ws, startRow, endRow, startCol, endCol) {
     }
 }
 
+// ===== Fix SheetJS !ref range bug (common in files exported from BCA portal) =====
+function fixSheetRef(ws) {
+    if (!ws) return;
+    let minR = Infinity, maxR = -1, minC = Infinity, maxC = -1;
+    for (const k of Object.keys(ws)) {
+        if (k.startsWith('!')) continue;
+        const d = XLSX.utils.decode_cell(k);
+        if (d.r < minR) minR = d.r;
+        if (d.r > maxR) maxR = d.r;
+        if (d.c < minC) minC = d.c;
+        if (d.c > maxC) maxC = d.c;
+    }
+    if (maxR >= 0 && maxC >= 0) {
+        ws['!ref'] = XLSX.utils.encode_range({
+            s: { r: minR === Infinity ? 0 : minR, c: minC === Infinity ? 0 : minC },
+            e: { r: maxR, c: maxC }
+        });
+    }
+}
+
 // ===== Main conversion logic =====
 function processFiles(srcArrayBuffer, extraDays) {
     const stats = {
@@ -1979,6 +2006,7 @@ function processFiles(srcArrayBuffer, extraDays) {
     }
 
     const wsSrc = wbSrc.Sheets[wbSrc.SheetNames[0]];
+    fixSheetRef(wsSrc);
     const srcRows = XLSX.utils.sheet_to_json(wsSrc, { header: 1, defval: null, raw: true });
 
     // Build lookups from template
@@ -2457,10 +2485,72 @@ function normalizeName(name) {
     return nfc(name).toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// ===== Normalize document ID (CCCD/CMND) =====
+// Handles: leading zeros, numeric vs string, whitespace, special chars
+function normalizeDocId(docId) {
+    if (!docId) return '';
+    let s = String(docId).trim().replace(/[\s\-\.]/g, '');
+    // Remove 'null' string
+    if (s.toLowerCase() === 'null' || s === '0') return '';
+    // Pad to 12 digits if it looks like CCCD (9-12 digits)
+    if (/^\d{9,12}$/.test(s)) {
+        s = s.padStart(12, '0');
+    }
+    return s.toUpperCase();
+}
+
+// ===== Extract year from date string =====
+function extractYear(dateStr) {
+    if (!dateStr) return '';
+    const s = String(dateStr).trim();
+    // Match 4-digit year from various formats
+    const m = s.match(/(\d{4})/);
+    return m ? m[1] : '';
+}
+
+// ===== Normalize date string for consistent matching =====
+function normalizeDateStr(val) {
+    if (!val && val !== 0) return '';
+    let s = String(val).trim();
+    
+    // Handle Excel serial numbers (e.g., 32874 → date)
+    if (/^\d{4,5}(\.\d+)?$/.test(s)) {
+        try {
+            const dt = XLSX.SSF.parse_date_code(parseFloat(s));
+            if (dt && dt.y > 1900) {
+                return String(dt.d).padStart(2, '0') + '/' + String(dt.m).padStart(2, '0') + '/' + dt.y;
+            }
+        } catch(e) {}
+    }
+    
+    // Strip time component: "01/01/1990 00:00:00" → "01/01/1990"
+    s = s.replace(/\s+\d{1,2}:\d{2}(:\d{2})?.*$/, '');
+    
+    // Handle yyyy-mm-dd format → dd/mm/yyyy
+    const isoMatch = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (isoMatch) {
+        return isoMatch[3].padStart(2, '0') + '/' + isoMatch[2].padStart(2, '0') + '/' + isoMatch[1];
+    }
+    
+    // Ensure dd/mm/yyyy has padded day and month: "1/1/1990" → "01/01/1990"
+    const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmyMatch) {
+        return dmyMatch[1].padStart(2, '0') + '/' + dmyMatch[2].padStart(2, '0') + '/' + dmyMatch[3];
+    }
+    
+    // Handle year-only: "1990" → "01/01/1990"
+    if (/^\d{4}$/.test(s) && parseInt(s) >= 1900 && parseInt(s) <= 2100) {
+        return '01/01/' + s;
+    }
+    
+    return s;
+}
+
 // ===== Extract patients from a source file =====
 function extractPatients(arrayBuffer) {
     const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
     const ws = wb.Sheets[wb.SheetNames[0]];
+    fixSheetRef(ws);
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
 
     const [headerRowIdx, colMap] = findSourceColumns(rows);
@@ -2486,25 +2576,27 @@ function extractPatients(arrayBuffer) {
         if (!hoTen || String(hoTen).trim().startsWith('<')) continue;
 
         // Get document IDs — try both CCCD and giấy tờ khác columns
-        let docId = '';
+        let docIdRaw = '';
         if ('so_giay_to' in colMap) {
-            docId = String(safeGet(row, 'so_giay_to') || '').trim();
+            docIdRaw = String(safeGet(row, 'so_giay_to') || '').trim();
         }
-        if (!docId) {
+        if (!docIdRaw) {
             const soCccd = safeGet(row, 'so_cccd');
-            if (soCccd) docId = String(soCccd).trim();
+            if (soCccd) docIdRaw = String(soCccd).trim();
         }
-        if (!docId) {
+        if (!docIdRaw) {
             const soHc = safeGet(row, 'so_ho_chieu');
-            if (soHc) docId = String(soHc).trim();
+            if (soHc) docIdRaw = String(soHc).trim();
         }
-        if (!docId) {
+        if (!docIdRaw) {
             const soGtk = safeGet(row, 'so_giay_to_khac');
-            if (soGtk) docId = String(soGtk).trim();
+            if (soGtk) docIdRaw = String(soGtk).trim();
         }
+        const docId = normalizeDocId(docIdRaw);
 
         const hoTenStr = String(hoTen).trim();
-        const ngaySinh = String(safeGet(row, 'ngay_sinh') || '').trim();
+        const ngaySinhRaw = String(safeGet(row, 'ngay_sinh') || '').trim();
+        const ngaySinh = normalizeDateStr(ngaySinhRaw);
         const phongKhoa = String(safeGet(row, 'phong_khoa') || '').trim();
         const ngayDen = String(safeGet(row, 'ngay_den') || '').trim();
 
@@ -2531,22 +2623,40 @@ function extractPatients(arrayBuffer) {
 
 // ===== Build lookup sets for today's patients =====
 function buildTodayLookup(todayPatients) {
-    // Set 1: docId keys (for patients with docId)
-    const docIdSet = new Set();
-    // Set 2: nameKey (hoTen normalized + ngaySinh)
-    const nameKeySet = new Set();
-    // Set 3: combined key docId + nameKey (strictest match)
-    const combinedSet = new Set();
+    const docIdSet = new Set();           // Set 1: normalized docId
+    const nameKeySet = new Set();          // Set 2: nameKey (name + full DOB)
+    const combinedSet = new Set();         // Set 3: docId + nameKey (strictest)
+    const cleanNameKeySet = new Set();     // Set 4: accent-stripped name + full DOB
+    const nameOnlySet = new Set();         // Set 5: normalized name only (no DOB)
+    const nameYearSet = new Set();         // Set 6: name + year of birth only
+    const cleanNameYearSet = new Set();    // Set 7: accent-stripped name + year
+    const cleanNameOnlySet = new Set();    // Set 8: accent-stripped name only
 
     for (const p of todayPatients) {
-        if (p.docId) {
-            docIdSet.add(p.docId);
-            combinedSet.add(p.docId + '||' + p.nameKey);
+        const normalizedDoc = normalizeDocId(p.docId);
+        if (normalizedDoc) {
+            docIdSet.add(normalizedDoc);
+            combinedSet.add(normalizedDoc + '||' + p.nameKey);
         }
         nameKeySet.add(p.nameKey);
+        
+        const cleanName = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim();
+        cleanNameKeySet.add(cleanName + '|' + p.ngaySinh);
+        
+        // Name-only lookups (critical for date format mismatch)
+        const normName = normalizeName(p.hoTen);
+        nameOnlySet.add(normName);
+        cleanNameOnlySet.add(cleanName);
+        
+        // Name + year-of-birth lookups (handles partial date matches)
+        const year = extractYear(p.ngaySinh);
+        if (year) {
+            nameYearSet.add(normName + '|' + year);
+            cleanNameYearSet.add(cleanName + '|' + year);
+        }
     }
 
-    return { docIdSet, nameKeySet, combinedSet };
+    return { docIdSet, nameKeySet, combinedSet, cleanNameKeySet, nameOnlySet, nameYearSet, cleanNameYearSet, cleanNameOnlySet };
 }
 
 // ===== Run comparison =====
@@ -2568,39 +2678,17 @@ async function runComparison() {
         const yBuffer = new Uint8Array(await yFile.arrayBuffer());
         const tBuffer = new Uint8Array(await tFile.arrayBuffer());
 
-        const yesterdayPatients = extractPatients(yBuffer);
-        const todayPatients = extractPatients(tBuffer);
-        const todayLookup = buildTodayLookup(todayPatients);
+        const yesterdayPatients = extractPatientList(yBuffer);
+        const todayPatients = extractPatientList(tBuffer);
+        if (yesterdayPatients.length === 0) throw new Error('Không đọc được dữ liệu từ file hôm qua (phải có cột Họ tên).');
+        if (todayPatients.length === 0) throw new Error('Không đọc được dữ liệu từ file hôm nay (phải có cột Họ tên).');
+
+        const todayLookup = buildLookupSets(todayPatients);
 
         // Find discharged: in yesterday but NOT matched in today
-        // Match logic:
-        //   - Has docId → match by (docId + hoTen + ngaySinh) OR by (hoTen + ngaySinh) alone
-        //   - No docId  → match by (hoTen + ngaySinh) only
         const discharged = [];
         for (const p of yesterdayPatients) {
-            let matched = false;
-
-            if (p.docId) {
-                // Strict: combined key match (docId + name + DOB)
-                if (todayLookup.combinedSet.has(p.docId + '||' + p.nameKey)) {
-                    matched = true;
-                }
-                // Fallback: same docId exists in today
-                else if (todayLookup.docIdSet.has(p.docId)) {
-                    matched = true;
-                }
-                // Fallback: same name + DOB exists in today
-                else if (todayLookup.nameKeySet.has(p.nameKey)) {
-                    matched = true;
-                }
-            } else {
-                // No docId: match by name + DOB only
-                if (todayLookup.nameKeySet.has(p.nameKey)) {
-                    matched = true;
-                }
-            }
-
-            if (!matched) {
+            if (!isPatientInLookup(p, todayLookup)) {
                 discharged.push(p);
             }
         }
@@ -2733,9 +2821,10 @@ function checkBcaReady() {
 }
 
 // ===== Strip Vietnamese accents helper =====
+// IMPORTANT: NFC-normalize first to handle different Unicode forms
 function stripAccents(str) {
     if (!str) return '';
-    return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
+    return String(str).normalize('NFC').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd');
 }
 
 // ===== Smart Extract patients — auto-detect format =====
@@ -2750,6 +2839,7 @@ function extractPatientList(arrayBuffer) {
         }
     }
     const targetSheet = wb.Sheets[targetSheetName];
+    fixSheetRef(targetSheet);
     const rows = XLSX.utils.sheet_to_json(targetSheet, { header: 1, defval: null, raw: true });
     const isKblt = targetSheetName.includes('DS_KHACH') || (rows[1] && rows[1].some(c => String(c).includes('HỌ TÊN')));
 
@@ -2819,13 +2909,12 @@ function extractPatientList(arrayBuffer) {
         const unaccName = stripAccents(hoTenStr).toLowerCase();
         if (!hoTenStr || hoTenStr.startsWith('<') || unaccName === 'ho ten' || unaccName === 'ho va ten' || hoTenStr.startsWith('[') || hoTenStr.toLowerCase().startsWith('mẫu')) continue;
 
-        const ngaySinh = colMap.dob !== -1 ? String(row[colMap.dob] || '').trim() : '';
-        let docId = colMap.docId !== -1 ? String(row[colMap.docId] || '').trim() : '';
+        const ngaySinhRaw = colMap.dob !== -1 ? String(row[colMap.dob] || '').trim() : '';
+        const ngaySinh = normalizeDateStr(ngaySinhRaw);
+        const docIdRaw = colMap.docId !== -1 ? String(row[colMap.docId] || '').trim() : '';
+        const docId = normalizeDocId(docIdRaw);
         const phongKhoa = colMap.room !== -1 ? String(row[colMap.room] || '').trim() : '';
         const ngayDen = colMap.admitDate !== -1 ? String(row[colMap.admitDate] || '').trim() : '';
-
-        // Clean docId: remove 'null' string
-        if (docId === 'null') docId = '';
 
         const nameKey = normalizeName(hoTenStr) + '|' + ngaySinh;
         const dedupKey = docId ? (docId.toUpperCase() + '||' + nameKey) : nameKey;
@@ -2848,37 +2937,64 @@ function extractPatientList(arrayBuffer) {
     return Array.from(uniqueMap.values());
 }
 
-// ===== Build lookup from a patient list =====
+// ===== Build lookup from a patient list (Tab 3: BCA comparison) =====
 function buildLookupSets(patients) {
     const docIdSet = new Set();
     const nameKeySet = new Set();
     const combinedSet = new Set();
     const cleanNameKeySet = new Set();
+    const nameOnlySet = new Set();
+    const nameYearSet = new Set();
+    const cleanNameYearSet = new Set();
+    const cleanNameOnlySet = new Set();
 
     patients.forEach(p => {
-        if (p.docId) {
-            const d = p.docId.trim().toUpperCase();
-            docIdSet.add(d);
-            combinedSet.add(d + '||' + p.nameKey);
+        const normalizedDoc = normalizeDocId(p.docId);
+        if (normalizedDoc) {
+            docIdSet.add(normalizedDoc);
+            combinedSet.add(normalizedDoc + '||' + p.nameKey);
         }
         nameKeySet.add(p.nameKey);
-        cleanNameKeySet.add(stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh);
+        
+        const cleanName = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim();
+        cleanNameKeySet.add(cleanName + '|' + p.ngaySinh);
+        
+        const normName = normalizeName(p.hoTen);
+        nameOnlySet.add(normName);
+        cleanNameOnlySet.add(cleanName);
+        
+        const year = extractYear(p.ngaySinh);
+        if (year) {
+            nameYearSet.add(normName + '|' + year);
+            cleanNameYearSet.add(cleanName + '|' + year);
+        }
     });
 
-    return { docIdSet, nameKeySet, combinedSet, cleanNameKeySet };
+    return { docIdSet, nameKeySet, combinedSet, cleanNameKeySet, nameOnlySet, nameYearSet, cleanNameYearSet, cleanNameOnlySet };
 }
 
-// ===== Check if patient matches a lookup =====
+// ===== Check if patient matches a lookup (multi-tier) =====
 function isPatientInLookup(p, lookup) {
-    const cleanKey = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim() + '|' + p.ngaySinh;
-    const docUpper = p.docId ? p.docId.trim().toUpperCase() : '';
+    const normalizedDoc = normalizeDocId(p.docId);
+    const cleanName = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim();
+    const normName = normalizeName(p.hoTen);
+    const year = extractYear(p.ngaySinh);
 
-    if (docUpper) {
-        if (lookup.combinedSet.has(docUpper + '||' + p.nameKey)) return true;
-        if (lookup.docIdSet.has(docUpper)) return true;
-        if (lookup.nameKeySet.has(p.nameKey) || lookup.cleanNameKeySet.has(cleanKey)) return true;
-    } else {
-        if (lookup.nameKeySet.has(p.nameKey) || lookup.cleanNameKeySet.has(cleanKey)) return true;
+    // Tier 1: DocId match
+    if (normalizedDoc && lookup.docIdSet.has(normalizedDoc)) return true;
+    // Tier 2: Exact name + full DOB
+    if (lookup.nameKeySet.has(p.nameKey)) return true;
+    // Tier 3: Name + year of birth
+    if (year && lookup.nameYearSet && lookup.nameYearSet.has(normName + '|' + year)) return true;
+    // Tier 4: Accent-stripped name + full DOB
+    if (lookup.cleanNameKeySet.has(cleanName + '|' + p.ngaySinh)) return true;
+    // Tier 5: Accent-stripped name + year
+    if (year && lookup.cleanNameYearSet && lookup.cleanNameYearSet.has(cleanName + '|' + year)) return true;
+    // Tier 6: Name-only (3+ words to avoid false matches)
+    const nameWords = normName.split(' ');
+    if (nameWords.length >= 3) {
+        if (lookup.nameOnlySet && lookup.nameOnlySet.has(normName)) return true;
+        if (lookup.cleanNameOnlySet && lookup.cleanNameOnlySet.has(cleanName)) return true;
     }
     return false;
 }
@@ -2940,20 +3056,58 @@ async function runBcaComparison() {
             }
         }
 
-        // === Compare ===
-        const stillHospitalized = []; // On BCA AND on HIS => cần gia hạn
-        const discharged = [];        // On BCA or KBLT cũ but NOT on HIS => đã ra viện
-        const newPatients = [];        // On HIS but NOT on BCA => cần khai báo mới
+        // === Compare: Hợp nhất dữ liệu danh sách trước đó (File 2: BCA và/hoặc File 3: KBLT cũ) ===
+        const previousPatients = [];
+        const prevDedup = new Set();
+        const bcaDocMap = new Map();
+        const bcaNameMap = new Map();
+
+        // 1. Nạp danh sách từ BCA (File 2)
+        if (bcaPatients.length > 0) {
+            bcaPatients.forEach(p => {
+                const normDoc = normalizeDocId(p.docId);
+                if (normDoc) bcaDocMap.set(normDoc, p);
+                bcaNameMap.set(p.nameKey, p);
+
+                const key = (normDoc ? normDoc + '||' : '') + p.nameKey;
+                if (!prevDedup.has(key)) {
+                    prevDedup.add(key);
+                    p.nguon = 'BCA';
+                    p.hasOnBca = true;
+                    previousPatients.push(p);
+                }
+            });
+        }
+
+        // 2. Nạp danh sách từ KBLT cũ (File 3)
+        if (resultPatients.length > 0) {
+            resultPatients.forEach(p => {
+                const normDoc = normalizeDocId(p.docId);
+                const onBca = (normDoc && bcaDocMap.has(normDoc)) || bcaNameMap.has(p.nameKey);
+                const key = (normDoc ? normDoc + '||' : '') + p.nameKey;
+                if (!prevDedup.has(key)) {
+                    prevDedup.add(key);
+                    p.nguon = onBca ? 'BCA & KBLT cũ' : 'KBLT cũ';
+                    p.hasOnBca = !!onBca;
+                    previousPatients.push(p);
+                }
+            });
+        }
+
+        const stillHospitalized = []; // Có trong previous VÀ có trên HIS => tiếp tục nằm viện
+        const discharged = [];        // Có trong previous NHƯNG KHÔNG CÒN trên HIS => đã ra viện
+        const newPatients = [];       // Có trên HIS NHƯNG CHƯA TỪNG CÓ trong previous => bệnh nhân mới
         const dischargedDedup = new Set();
 
-        // 1. Kiểm tra từng BN trên BCA với HIS
-        if (bcaPatients.length > 0) {
-            for (const p of bcaPatients) {
+        // 3. Kiểm tra danh sách trước đó với HIS hôm nay:
+        if (previousPatients.length > 0) {
+            for (const p of previousPatients) {
                 if (isPatientInLookup(p, hisLookup)) {
+                    p.nguon = p.hasOnBca ? 'Đã có trên BCA' : 'Từ KBLT cũ (chưa có trên BCA)';
                     stillHospitalized.push(p);
                 } else {
-                    p.nguon = 'BCA';
-                    const dedupKey = (p.docId ? p.docId.trim().toUpperCase() + '||' : '') + p.nameKey;
+                    const normDoc = normalizeDocId(p.docId);
+                    const dedupKey = (normDoc ? normDoc + '||' : '') + p.nameKey;
                     if (!dischargedDedup.has(dedupKey)) {
                         dischargedDedup.add(dedupKey);
                         discharged.push(p);
@@ -2962,40 +3116,22 @@ async function runBcaComparison() {
             }
         }
 
-        // 2. Kiểm tra từng BN trong file KBLT (File 3, ví dụ KBLT hôm trước) với HIS => BN đã ra viện
-        if (resultPatients && resultPatients.length > 0) {
-            for (const p of resultPatients) {
-                if (!isPatientInLookup(p, hisLookup)) {
-                    const dedupKey = (p.docId ? p.docId.trim().toUpperCase() + '||' : '') + p.nameKey;
-                    if (!dischargedDedup.has(dedupKey)) {
-                        dischargedDedup.add(dedupKey);
-                        p.nguon = 'KBLT cũ';
-                        discharged.push(p);
-                    }
-                }
-            }
-        }
-
-        // 3. Kiểm tra từng BN trên HIS với BCA => Tìm BN mới cần nạp BCA
-        if (bcaLookup) {
+        // 4. Tìm BN MỚI: BN trên HIS hôm nay chưa từng có trong danh sách trước đó (cả BCA lẫn KBLT cũ)
+        if (previousPatients.length > 0) {
+            const prevLookup = buildLookupSets(previousPatients);
             for (const p of hisPatients) {
-                if (!isPatientInLookup(p, bcaLookup)) {
+                if (!isPatientInLookup(p, prevLookup)) {
                     newPatients.push(p);
                 }
             }
-        } else if (resultPatients && resultPatients.length > 0) {
-            const rLookup = buildLookupSets(resultPatients);
-            for (const p of hisPatients) {
-                if (!isPatientInLookup(p, rLookup)) {
-                    newPatients.push(p);
-                }
-            }
+        } else {
+            hisPatients.forEach(p => newPatients.push(p));
         }
 
         bcaDischargedList = discharged;
         bcaStillList = stillHospitalized;
         bcaNewList = newPatients;
-        showBcaResults(hisPatients.length, bcaPatients.length, discharged, stillHospitalized, newPatients);
+        showBcaResults(hisPatients.length, previousPatients.length, discharged, stillHospitalized, newPatients, bcaPatients.length, resultPatients.length);
 
     } catch (err) {
         errorBanner.textContent = '❌ ' + err.message;
@@ -3007,15 +3143,27 @@ async function runBcaComparison() {
 }
 
 // ===== Show BCA results =====
-function showBcaResults(hisCount, bcaCount, discharged, stillHospitalized, newPatients) {
+function showBcaResults(hisCount, prevCount, discharged, stillHospitalized, newPatients, bcaCount = 0, kbltCount = 0) {
     const summaryParts = [];
-    if (stillHospitalized.length > 0) summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (cần gia hạn)`);
+    if (stillHospitalized.length > 0) {
+        const onBca = stillHospitalized.filter(p => p.hasOnBca).length;
+        if (bcaCount > 0 && kbltCount > 0) {
+            summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (${onBca} trên BCA, ${stillHospitalized.length - onBca} từ KBLT cũ)`);
+        } else {
+            summaryParts.push(`${stillHospitalized.length} BN còn nằm viện (cần gia hạn)`);
+        }
+    }
     if (discharged.length > 0) summaryParts.push(`${discharged.length} BN đã ra viện`);
-    if (newPatients.length > 0) summaryParts.push(`${newPatients.length} BN mới chưa có trên BCA (cần nạp)`);
+    if (newPatients.length > 0) summaryParts.push(`${newPatients.length} BN mới nhập viện (cần nạp KBLT)`);
     document.getElementById('bcaSummary').textContent = summaryParts.join(' — ') || 'Không có thay đổi';
 
     animateCounter('statHis', hisCount);
-    animateCounter('statBca', bcaCount);
+    // Hiển thị số lượng BN đã lưu trú trước đó (nếu có BCA thì ưu tiên hiển thị BCA)
+    animateCounter('statBca', bcaCount > 0 ? bcaCount : prevCount);
+    const bcaLabel = document.querySelector('#statBca + .stat-label');
+    if (bcaLabel) {
+        bcaLabel.textContent = (bcaCount > 0 && kbltCount > 0) ? `BN BCA (${bcaCount}) / KBLT cũ` : (bcaCount > 0 ? 'BN trên BCA' : 'BN KBLT Cũ');
+    }
     animateCounter('statBcaStill', stillHospitalized.length);
     animateCounter('statBcaDischarged', discharged.length);
     if (document.getElementById('statBcaNew')) {
