@@ -1634,13 +1634,23 @@
                         </button>
 
                         <!-- Action Card: Nằm viện nhưng Chưa có trên BCA -->
-                        <button type="button" class="btn-download-card warning-missing" id="btnDownloadBcaMissing" style="display: none;" title="Bệnh nhân vẫn đang nằm viện nhưng chưa có hồ sơ trên web BCA (Cần nạp mới)">
+                        <button type="button" class="btn-download-card warning-missing" id="btnDownloadBcaMissing" style="display: none;" title="Bệnh nhân vẫn đang nằm viện nhưng chưa có hồ sơ trên web BCA (Chuẩn mẫu BCA để import trực tiếp)">
                             <span class="btn-main-icon">⚠️</span>
                             <span class="btn-text-group">
                                 <span class="btn-main-label">Tải DS Chưa Có Trên BCA (.xlsx)</span>
-                                <span class="btn-sub-label">BN nằm viện chưa có trên BCA • Cần nạp mới</span>
+                                <span class="btn-sub-label">File chuẩn mẫu Bộ Công An • Import trực tiếp</span>
                             </span>
                             <span class="btn-count-pill" id="badgeBcaMissing">0 BN</span>
+                        </button>
+
+                        <!-- Action Card: Gộp toàn bộ BN cần nạp mới lên BCA -->
+                        <button type="button" class="btn-download-card primary-bca" id="btnDownloadBcaAllNew" style="display: none;" title="Gộp tất cả BN mới và BN chưa có trên BCA thành 1 file chuẩn BCA để import 1 lần">
+                            <span class="btn-main-icon">🚀</span>
+                            <span class="btn-text-group">
+                                <span class="btn-main-label">Tải Gộp Toàn Bộ Cần Nạp Mới (.xlsx)</span>
+                                <span class="btn-sub-label">Gộp BN mới + Chưa có trên BCA • Import 1 lần</span>
+                            </span>
+                            <span class="btn-count-pill" id="badgeBcaAllNew">0 BN</span>
                         </button>
 
                         <!-- Action Card: Tất cả Còn nằm viện -->
@@ -3040,6 +3050,61 @@ function isPatientInLookup(p, lookup) {
     return false;
 }
 
+// ===== Build lookup index map for fast patient object matching =====
+function buildPatientMapIndex(patients) {
+    const docMap = new Map();
+    const nameKeyMap = new Map();
+    const nameYearMap = new Map();
+    const cleanNameKeyMap = new Map();
+    const cleanNameYearMap = new Map();
+    const nameOnlyMap = new Map();
+    const cleanNameOnlyMap = new Map();
+
+    patients.forEach(p => {
+        const normDoc = normalizeDocId(p.docId);
+        if (normDoc && !docMap.has(normDoc)) docMap.set(normDoc, p);
+        if (!nameKeyMap.has(p.nameKey)) nameKeyMap.set(p.nameKey, p);
+
+        const cleanName = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim();
+        if (!cleanNameKeyMap.has(cleanName + '|' + p.ngaySinh)) cleanNameKeyMap.set(cleanName + '|' + p.ngaySinh, p);
+
+        const normName = normalizeName(p.hoTen);
+        const year = extractYear(p.ngaySinh);
+        if (year) {
+            if (!nameYearMap.has(normName + '|' + year)) nameYearMap.set(normName + '|' + year, p);
+            if (!cleanNameYearMap.has(cleanName + '|' + year)) cleanNameYearMap.set(cleanName + '|' + year, p);
+        }
+        const words = normName.split(' ');
+        if (words.length >= 3) {
+            if (!nameOnlyMap.has(normName)) nameOnlyMap.set(normName, p);
+            if (!cleanNameOnlyMap.has(cleanName)) cleanNameOnlyMap.set(cleanName, p);
+        }
+    });
+
+    return {
+        find(p) {
+            const normDoc = normalizeDocId(p.docId);
+            if (normDoc && docMap.has(normDoc)) return docMap.get(normDoc);
+            if (nameKeyMap.has(p.nameKey)) return nameKeyMap.get(p.nameKey);
+
+            const normName = normalizeName(p.hoTen);
+            const year = extractYear(p.ngaySinh);
+            if (year && nameYearMap.has(normName + '|' + year)) return nameYearMap.get(normName + '|' + year);
+
+            const cleanName = stripAccents(p.hoTen).toLowerCase().replace(/\s+/g, ' ').trim();
+            if (cleanNameKeyMap.has(cleanName + '|' + p.ngaySinh)) return cleanNameKeyMap.get(cleanName + '|' + p.ngaySinh);
+            if (year && cleanNameYearMap.has(cleanName + '|' + year)) return cleanNameYearMap.get(cleanName + '|' + year);
+
+            const words = normName.split(' ');
+            if (words.length >= 3) {
+                if (nameOnlyMap.has(normName)) return nameOnlyMap.get(normName);
+                if (cleanNameOnlyMap.has(cleanName)) return cleanNameOnlyMap.get(cleanName);
+            }
+            return null;
+        }
+    };
+}
+
 // ===== Run BCA comparison =====
 async function runBcaComparison() {
     const btn = document.getElementById('btnCompareBca');
@@ -3063,6 +3128,7 @@ async function runBcaComparison() {
         const hisPatients = extractPatientList(hBuffer);
         if (hisPatients.length === 0) throw new Error('Không đọc được dữ liệu từ file HIS.');
         const hisLookup = buildLookupSets(hisPatients);
+        const hisIndex = buildPatientMapIndex(hisPatients);
 
         // Read BCA (optional)
         let bcaPatients = [];
@@ -3143,7 +3209,9 @@ async function runBcaComparison() {
         // 3. Kiểm tra danh sách trước đó với HIS hôm nay:
         if (previousPatients.length > 0) {
             for (const p of previousPatients) {
-                if (isPatientInLookup(p, hisLookup)) {
+                const hisMatch = hisIndex.find(p);
+                if (hisMatch) {
+                    p.hisMatch = hisMatch;
                     p.nguon = p.hasOnBca ? 'Đã có trên BCA' : 'Từ KBLT cũ (chưa có trên BCA)';
                     stillHospitalized.push(p);
                 } else {
@@ -3259,6 +3327,19 @@ function showBcaResults(hisCount, prevCount, discharged, stillHospitalized, newP
         }
     }
 
+    // Nút tải Gộp Toàn Bộ BN cần nạp mới (BN Mới + Chưa có trên BCA)
+    const dlBtnAllNew = document.getElementById('btnDownloadBcaAllNew');
+    const badgeAllNew = document.getElementById('badgeBcaAllNew');
+    if (dlBtnAllNew) {
+        if (newPatients.length > 0 && missingList.length > 0) {
+            dlBtnAllNew.style.display = 'flex';
+            if (badgeAllNew) badgeAllNew.textContent = `${newPatients.length + missingList.length} BN`;
+            dlBtnAllNew.onclick = downloadBcaAllNewList;
+        } else {
+            dlBtnAllNew.style.display = 'none';
+        }
+    }
+
     // Nút tải toàn bộ BN còn nằm viện
     const dlBtnStill = document.getElementById('btnDownloadBcaStill');
     const badgeStill = document.getElementById('badgeBcaStill');
@@ -3319,7 +3400,14 @@ function downloadBcaExtendList() {
 function downloadBcaMissingList() {
     const list = bcaStillList.filter(p => !p.hasOnBca);
     if (list.length === 0) return;
-    downloadPatientExcel(list, 'BCA_Chua_Khai_Bao', 'DS_BN_Chua_Co_Tren_BCA');
+    exportPatientsToBcaTemplate(list, 'BCA_Chua_Co_Tren_Web');
+}
+
+function downloadBcaAllNewList() {
+    const missing = bcaStillList.filter(p => !p.hasOnBca);
+    const combined = [...bcaNewList, ...missing];
+    if (combined.length === 0) return;
+    exportPatientsToBcaTemplate(combined, 'BCA_Gop_Tat_Ca_Can_Nap_Moi');
 }
 
 function downloadBcaStillList() {
@@ -3327,9 +3415,9 @@ function downloadBcaStillList() {
     downloadPatientExcel(bcaStillList, 'BCA_Con_Nam', 'BCA_Toan_Bo_Con_Nam_Vien');
 }
 
-// Xuất file BN Mới theo đúng File Mẫu chuẩn KBLT của Bộ Công An
-function downloadBcaNewList() {
-    if (bcaNewList.length === 0) return;
+// Xuất danh sách bệnh nhân theo đúng File Mẫu chuẩn KBLT của Bộ Công An (19 cột, giữ dòng hướng dẫn)
+function exportPatientsToBcaTemplate(list, filePrefix) {
+    if (!list || list.length === 0) return;
 
     if (templateData) {
         try {
@@ -3340,21 +3428,42 @@ function downloadBcaNewList() {
                 clearCells(wsTpl, 4, Math.max(tplRange.e.r, 2000), 0, 18);
 
                 let lk = null;
-                bcaNewList.forEach((p, idx) => {
+                list.forEach((p, idx) => {
                     const r = 4 + idx; // Excel row 5+ (giữ nguyên dòng 3 "Mẫu dữ liệu" và dòng 4 "[EXAMPLE]")
                     setCell(wsTpl, r, 0, idx + 1);
 
+                    // Ưu tiên 1: Đã có rawRow KBLT 19 cột từ file KBLT mẫu (từ File 3 hoặc File 1 KBLT)
                     if (p.isKblt && p.rawRow && p.rawRow.length >= 10) {
                         for (let c = 1; c < Math.min(p.rawRow.length, 19); c++) {
                             setCell(wsTpl, r, c, (p.rawRow[c] !== undefined && p.rawRow[c] !== null) ? p.rawRow[c] : '');
                         }
-                    } else if (p.rawRow && p.colMap) {
+                        if (p.hisMatch && p.hisMatch.phongKhoa) {
+                            setCell(wsTpl, r, 15, p.hisMatch.phongKhoa);
+                        }
+                    }
+                    // Ưu tiên 2: hisMatch là KBLT có rawRow 19 cột
+                    else if (p.hisMatch && p.hisMatch.isKblt && p.hisMatch.rawRow && p.hisMatch.rawRow.length >= 10) {
+                        for (let c = 1; c < Math.min(p.hisMatch.rawRow.length, 19); c++) {
+                            setCell(wsTpl, r, c, (p.hisMatch.rawRow[c] !== undefined && p.hisMatch.rawRow[c] !== null) ? p.hisMatch.rawRow[c] : '');
+                        }
+                        if (p.hisMatch.phongKhoa) {
+                            setCell(wsTpl, r, 15, p.hisMatch.phongKhoa);
+                        }
+                    }
+                    // Ưu tiên 3: hisMatch có rawRow và colMap từ file HIS
+                    else if (p.hisMatch && p.hisMatch.rawRow && p.hisMatch.colMap) {
+                        if (!lk) lk = buildLookups(wbTpl);
+                        fillTplRowFromHis(wsTpl, r, p.hisMatch.rawRow, p.hisMatch.colMap, lk, idx + 1);
+                    }
+                    // Ưu tiên 4: Chính p có rawRow và colMap từ file HIS
+                    else if (p.rawRow && p.colMap) {
                         if (!lk) lk = buildLookups(wbTpl);
                         fillTplRowFromHis(wsTpl, r, p.rawRow, p.colMap, lk, idx + 1);
-                    } else {
-                        // Fallback generic mapping
-                        setCell(wsTpl, r, 1, p.hoTen);
-                        setCell(wsTpl, r, 2, p.ngaySinh);
+                    }
+                    // Ưu tiên 5: Fallback thông tin cơ bản
+                    else {
+                        setCell(wsTpl, r, 1, p.hoTen || '');
+                        setCell(wsTpl, r, 2, p.ngaySinh || '');
                         setCell(wsTpl, r, 3, 'F - Nữ');
                         setCell(wsTpl, r, 4, 'VNM - Viet Nam');
                         setCell(wsTpl, r, 5, (p.docId && p.docId.length === 12) ? '1 - Thẻ CCCD' : '3 - Thẻ BHYT');
@@ -3362,19 +3471,19 @@ function downloadBcaNewList() {
                         setCell(wsTpl, r, 9, '3 - Khác');
                         setCell(wsTpl, r, 13, p.ngayDen || '');
                         setCell(wsTpl, r, 15, p.phongKhoa || '');
-                        setCell(wsTpl, r, 16, '1 - Chữa bệnh');
+                        setCell(wsTpl, r, 16, '18 - Chữa bệnh');
                     }
                 });
 
                 wsTpl['!ref'] = XLSX.utils.encode_range({
                     s: { r: 0, c: 0 },
-                    e: { r: 3 + bcaNewList.length, c: 18 }
+                    e: { r: 3 + list.length, c: 18 }
                 });
 
                 const now = new Date();
                 const dd = String(now.getDate()).padStart(2, '0');
                 const mm = String(now.getMonth() + 1).padStart(2, '0');
-                XLSX.writeFile(wbTpl, `BCA_BN_Moi_${dd}${mm}.xlsx`);
+                XLSX.writeFile(wbTpl, `${filePrefix}_${dd}${mm}.xlsx`);
                 return;
             }
         } catch (e) {
@@ -3382,8 +3491,13 @@ function downloadBcaNewList() {
         }
     }
 
-    // Fallback if templateData is not loaded
-    downloadPatientExcel(bcaNewList, 'BCA_BN_Moi', 'BCA_BN_Moi');
+    // Fallback nếu không có template
+    downloadPatientExcel(list, filePrefix, filePrefix);
+}
+
+// Xuất file BN Mới theo đúng File Mẫu chuẩn KBLT của Bộ Công An
+function downloadBcaNewList() {
+    exportPatientsToBcaTemplate(bcaNewList, 'BCA_BN_Moi');
 }
 
 // Xuất file tóm tắt rút gọn (để in hoặc xem nhanh)
@@ -3518,6 +3632,7 @@ function resetBca() {
     document.getElementById('btnDownloadBcaStill').style.display = 'none';
     if (document.getElementById('btnDownloadBcaExtend')) document.getElementById('btnDownloadBcaExtend').style.display = 'none';
     if (document.getElementById('btnDownloadBcaMissing')) document.getElementById('btnDownloadBcaMissing').style.display = 'none';
+    if (document.getElementById('btnDownloadBcaAllNew')) document.getElementById('btnDownloadBcaAllNew').style.display = 'none';
     document.getElementById('btnDownloadBcaNew').style.display = 'none';
     if (document.getElementById('btnDownloadBcaNewSummary')) {
         document.getElementById('btnDownloadBcaNewSummary').style.display = 'none';
